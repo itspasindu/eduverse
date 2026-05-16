@@ -6,32 +6,17 @@ from pydantic import BaseModel, EmailStr, Field
 from app.models.enums import UserRole
 
 
-class UserRegister(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
-    role: UserRole = UserRole.STUDENT
-
-
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
-    role: UserRole
-
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-
 class UserPublic(BaseModel):
     id: UUID
     email: EmailStr
     role: UserRole
+    full_name: str | None = None
+    avatar_url: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class ProfileUpdate(BaseModel):
+    full_name: str | None = Field(default=None, max_length=120)
+    avatar_url: str | None = Field(default=None, max_length=2048)

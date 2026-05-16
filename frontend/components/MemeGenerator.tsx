@@ -1,15 +1,28 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { generateMeme } from "@/lib/api";
+import MemeCard from "@/components/MemeCard";
+import { generateMeme, savePost } from "@/lib/api";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export default function MemeGenerator() {
+type MemeData = {
+  imageUrl: string;
+  topText: string;
+  bottomText: string;
+};
+
+type Props = {
+  saveToLibrary?: boolean;
+};
+
+export default function MemeGenerator({ saveToLibrary = false }: Props) {
   const [text, setText] = useState("");
   const [status, setStatus] = useState<Status>("idle");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [meme, setMeme] = useState<MemeData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const handleGenerate = useCallback(async () => {
     const trimmed = text.trim();
@@ -21,15 +34,16 @@ export default function MemeGenerator() {
 
     setStatus("loading");
     setError(null);
-    setImageUrl(null);
+    setMeme(null);
+    setSaved(false);
 
     try {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("access_token")
-          : null;
-      const result = await generateMeme(trimmed, token);
-      setImageUrl(result.image_url);
+      const result = await generateMeme(trimmed);
+      setMeme({
+        imageUrl: result.image_url,
+        topText: result.top_text || "",
+        bottomText: result.bottom_text || "",
+      });
       setStatus("success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -38,6 +52,9 @@ export default function MemeGenerator() {
   }, [text]);
 
   const isLoading = status === "loading";
+  const captionForSave = meme
+    ? [meme.topText, meme.bottomText].filter(Boolean).join(" / ")
+    : text.trim();
 
   return (
     <div className="mx-auto w-full max-w-xl rounded-2xl border border-violet-500/20 bg-white/80 p-6 shadow-xl shadow-violet-500/10 backdrop-blur dark:bg-zinc-900/80">
@@ -46,7 +63,8 @@ export default function MemeGenerator() {
           AI Meme Generator
         </h2>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Turn your topic or study notes into a shareable meme.
+          We generate the scene with AI and add clear English captions on top — no
+          gibberish text in the image.
         </p>
       </header>
 
@@ -57,7 +75,7 @@ export default function MemeGenerator() {
           onChange={(e) => setText(e.target.value)}
           disabled={isLoading}
           rows={4}
-          placeholder="e.g. Newton's third law — every action has an equal reaction"
+          placeholder="e.g. programmer debugging HTML code"
           className="mt-2 w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
       </label>
@@ -89,14 +107,37 @@ export default function MemeGenerator() {
 
       {isLoading && <LoadingPanel />}
 
-      {status === "success" && imageUrl && (
-        <figure className="meme-result mt-6 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt="Generated meme"
-            className="w-full object-cover"
+      {status === "success" && meme && (
+        <figure className="meme-result mt-6 space-y-3">
+          <MemeCard
+            imageUrl={meme.imageUrl}
+            topText={meme.topText}
+            bottomText={meme.bottomText}
           />
+          {saveToLibrary && (
+            <figcaption className="flex gap-2">
+              <button
+                type="button"
+                disabled={saved || saving}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    await savePost(meme.imageUrl, captionForSave);
+                    setSaved(true);
+                  } catch (err) {
+                    setError(
+                      err instanceof Error ? err.message : "Failed to save",
+                    );
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="flex-1 rounded-lg bg-violet-600 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {saved ? "Saved to library ✓" : saving ? "Saving…" : "Save to library"}
+              </button>
+            </figcaption>
+          )}
         </figure>
       )}
     </div>
@@ -128,7 +169,7 @@ function LoadingPanel() {
           </span>
         </div>
         <p className="text-sm font-medium text-violet-800 dark:text-violet-200">
-          Crafting your meme…
+          Writing captions & generating scene…
         </p>
         <div className="flex w-full gap-2">
           <span className="meme-shimmer h-2 flex-1 rounded-full" />

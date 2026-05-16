@@ -80,6 +80,45 @@ body {
   transform: scale(0.98);
 }
 
+.meme-card {
+  aspect-ratio: 4 / 3;
+}
+
+.meme-card img {
+  min-height: 100%;
+}
+
+.meme-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 0.35rem 0.75rem;
+  text-align: center;
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-size: clamp(1.1rem, 4.5vw, 2rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-transform: uppercase;
+  text-shadow:
+    2px 2px 0 #000,
+    -2px -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+    0 3px 6px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.meme-caption-top {
+  top: 0.5rem;
+}
+
+.meme-caption-bottom {
+  bottom: 0.5rem;
+}
+
 @keyframes chat-bubble-in {
   from {
     opacity: 0;
@@ -111,4 +150,36 @@ body {
 
 .chat-cursor {
   animation: chat-cursor-blink 0.9s step-end infinite;
+}
+
+/* Presentation Slide Studio — use with next/font variables from slides layout */
+.font-presentation-inter {
+  font-family: var(--pf-inter), system-ui, sans-serif;
+}
+.font-presentation-montserrat {
+  font-family: var(--pf-montserrat), system-ui, sans-serif;
+}
+.font-presentation-nunito {
+  font-family: var(--pf-nunito), system-ui, sans-serif;
+}
+.font-presentation-playfair {
+  font-family: var(--pf-playfair), Georgia, serif;
+}
+.font-presentation-source-serif {
+  font-family: var(--pf-source-serif), Georgia, serif;
+}
+.font-presentation-jetbrains {
+  font-family: var(--pf-jetbrains), ui-monospace, monospace;
+}
+.font-presentation-cormorant {
+  font-family: var(--pf-cormorant), Georgia, serif;
+}
+
+@media print {
+  .slide-deck-print {
+    break-inside: avoid;
+  }
+  .no-print {
+    display: none !important;
+  }
 }

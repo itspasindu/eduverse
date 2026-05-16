@@ -15,7 +15,15 @@ from app.services.ai.helpers.fal import (
     text_to_image,
 )
 from app.services.ai.helpers.llm import TUTOR_MODE_PROMPTS, ask_llm, mock_tutor_answer
-from app.services.ai.models import MemeResult, TutorResult, VideoResult
+from app.services.ai.helpers.meme_captions import generate_meme_captions
+from app.services.ai.helpers.presentations import generate_presentation_slides
+from app.services.ai.models import (
+    MemeResult,
+    PresentationResult,
+    PresentationSlide,
+    TutorResult,
+    VideoResult,
+)
 
 
 class AIOrchestrator:
@@ -31,23 +39,30 @@ class AIOrchestrator:
         configure_fal_key(self.settings.fal_key)
 
     async def generate_meme(self, text: str) -> MemeResult:
-        """Generate a meme image from a text prompt (text → image)."""
+        """Generate meme: readable English captions + image without baked-in text."""
         if not text.strip():
             raise AIOrchestratorError("Meme prompt cannot be empty")
 
-        meme_prompt = self._build_meme_prompt(text)
+        captions = await generate_meme_captions(text, self.settings)
+        image_prompt = self._build_meme_image_prompt(text)
         raw = await text_to_image(
-            meme_prompt,
+            image_prompt,
             model=self.settings.fal_meme_model,
             num_images=1,
             timeout=self.settings.fal_request_timeout,
         )
         image_url = extract_image_url(raw)
 
+        use_free_captions = self.settings.fal_mock_mode or not self.settings.fal_key
+        caption_source = "template" if use_free_captions else "llm"
+
         return MemeResult(
             image_url=image_url,
-            prompt=meme_prompt,
+            prompt=image_prompt,
             model=self.settings.fal_meme_model,
+            top_text=captions["top_text"],
+            bottom_text=captions["bottom_text"],
+            caption_source=caption_source,
         )
 
     async def generate_video(self, image: str, *, prompt: str | None = None) -> VideoResult:
@@ -104,11 +119,48 @@ class AIOrchestrator:
             context_used=bool(context and context.strip()),
         )
 
+    async def generate_presentation(
+        self,
+        notes: str,
+        *,
+        title: str | None = None,
+        font_style: str = "modern-sans",
+    ) -> PresentationResult:
+        """Turn study notes into a structured slide deck with typography style."""
+        if not notes.strip():
+            raise AIOrchestratorError("Notes cannot be empty")
+
+        data = await generate_presentation_slides(
+            notes,
+            title=title,
+            font_style=font_style,
+            settings=self.settings,
+        )
+        slides = [
+            PresentationSlide(
+                title=s["title"],
+                bullets=s.get("bullets") or [],
+                speaker_notes=s.get("speaker_notes") or "",
+            )
+            for s in data["slides"]
+        ]
+        return PresentationResult(
+            title=data["title"],
+            font_style=data["font_style"],
+            slides=slides,
+            model=self.settings.fal_llm_model,
+            source=data.get("source", "llm"),
+        )
+
     @staticmethod
-    def _build_meme_prompt(text: str) -> str:
+    def _build_meme_image_prompt(text: str) -> str:
+        """Scene-only prompt — captions are rendered in the UI, not in the image."""
         return (
-            f"Funny educational meme, bold caption style, viral social media aesthetic: "
-            f"{text.strip()}"
+            f"Humorous photorealistic scene about: {text.strip()}. "
+            "Single clear subject, expressive face or situation, meme-worthy composition, "
+            "soft office or desk lighting, 4:3 aspect ratio. "
+            "CRITICAL: absolutely no text, no words, no letters, no numbers, "
+            "no captions, no labels, no watermarks, no logos, no typography anywhere in the image."
         )
 
 
