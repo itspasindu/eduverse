@@ -1,14 +1,11 @@
-"""Backward-compatible re-exports. Prefer `from app.db import User, Post, get_db`."""
+"""Backward-compatible re-exports. Prefer `from app.db import Profile, Post, get_supabase`."""
 
-from app.db import Post, User, get_db, init_db
-from app.db.session import Base, SessionLocal, engine
+from app.db import Post, Profile, get_supabase, post_from_row, profile_from_row
 
 __all__ = [
-    "Base",
-    "engine",
-    "SessionLocal",
-    "get_db",
-    "init_db",
-    "User",
+    "get_supabase",
+    "Profile",
     "Post",
+    "profile_from_row",
+    "post_from_row",
 ]

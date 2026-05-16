@@ -3,11 +3,12 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.config import Settings, get_settings
-from app.core.security import extract_bearer_token, validate_token
+from app.core.security import extract_bearer_token
+from app.core.supabase_auth import claims_to_user_fields, validate_supabase_token
 
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):
-    """Validate JWT on protected routes and attach user context to request.state."""
+    """Validate Supabase JWT on protected routes."""
 
     def __init__(self, app, settings: Settings | None = None):
         super().__init__(app)
@@ -32,7 +33,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             )
 
         try:
-            payload = validate_token(token)
+            claims = validate_supabase_token(token)
+            fields = claims_to_user_fields(claims)
         except ValueError:
             return JSONResponse(
                 status_code=401,
@@ -40,7 +42,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        request.state.user_id = payload["sub"]
-        request.state.user_role = payload.get("role")
+        request.state.user_id = fields["id"]
+        request.state.user_role = fields["role"]
+        request.state.supabase_claims = claims
 
         return await call_next(request)

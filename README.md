@@ -10,7 +10,8 @@ EduVerse combines social learning, creator tools, and AI-assisted education—me
 
 | Feature | Description |
 |--------|-------------|
-| **Authentication** | JWT-based sign-in and session management |
+| **Authentication** | Supabase Auth (email/password) + API session sync |
+| **Dashboard** | Role-aware workspace with stats, library, and quick actions |
 | **Roles** | Student, creator, and admin with role-based access |
 | **AI Meme Generation** | Text prompts → images via fal.ai |
 | **AI Tutor** | LLM-powered Q&A and learning assistance |
@@ -27,7 +28,7 @@ EduVerse combines social learning, creator tools, and AI-assisted education—me
 | Frontend | Next.js, Tailwind CSS |
 | Backend | FastAPI |
 | AI | fal.ai APIs, LLM |
-| Database | PostgreSQL (Supabase) |
+| Database | Supabase (Auth + Postgres via API) |
 | Vector DB | Pinecone |
 
 ---
@@ -47,14 +48,20 @@ EduVerse combines social learning, creator tools, and AI-assisted education—me
 │  └────┬────┘ └────┬────┘ └────┬────┘ └────────┬─────────┘  │
 └───────┼───────────┼───────────┼───────────────┼────────────┘
         │           │           │               │
-        ▼           ▼           ▼               ▼
-   PostgreSQL   PostgreSQL   PostgreSQL    fal.ai / LLM
-   (Supabase)   (Supabase)   (Supabase)    Pinecone (vectors)
+        │           │           │               │
+        └───────────┴───────────┴───────────────┘
+                            │
+                            ▼
+                      Supabase
+                   (Auth + Database)
+                            │
+                            ▼
+                      fal.ai / LLM
 ```
 
 ### Modular Services
 
-- **Auth** — Registration, login, JWT issuance, role enforcement
+- **Auth** — Supabase Auth sessions, profile sync, role enforcement
 - **Content** — Posts, media metadata, creator workflows
 - **Social** — Feed, likes, comments, engagement
 - **AI Orchestrator** — Single entry point for meme generation, tutor chat, image-to-video, and embedding/indexing for recommendations
@@ -95,7 +102,7 @@ eduverse/
 
 - Node.js 18+
 - Python 3.11+
-- PostgreSQL (or Supabase project)
+- Supabase project (database + auth)
 - Pinecone account
 - fal.ai API key
 - LLM provider credentials (as configured in the AI Orchestrator)
@@ -109,21 +116,30 @@ Create `.env` files for frontend and backend (do not commit secrets).
 **Backend (example)**
 
 ```env
-DATABASE_URL=postgresql://...
-SUPABASE_URL=
-SUPABASE_KEY=
-JWT_SECRET=
-FAL_KEY=
-PINECONE_API_KEY=
-PINECONE_INDEX=
-LLM_API_KEY=
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_JWT_SECRET=your-jwt-secret
+FAL_KEY=your-fal-key
 ```
+
+The backend uses the **Supabase Python client** (service role) for all database access — no local PostgreSQL, SQLite, or `DATABASE_URL` required.
 
 **Frontend (example)**
 
 ```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
+
+**Supabase setup**
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Enable **Email** auth under Authentication → Providers
+3. Run **`supabase/migrations/001_initial_schema.sql`** in the Supabase **SQL Editor** (creates `profiles` and `posts` tables). If you see `Could not find the table public.profiles`, this step was skipped.
+4. Copy **Project URL**, **anon key**, and **JWT secret** (Settings → API) into your `.env` files
+5. Set `SUPABASE_JWT_SECRET` in the backend `.env` so the API accepts Supabase session tokens
 
 ---
 
@@ -147,7 +163,9 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for the app and [http://localhost:8000/docs](http://localhost:8000/docs) for the FastAPI OpenAPI docs.
+Open [http://localhost:3000](http://localhost:3000) for the marketing page, [http://localhost:3000/register](http://localhost:3000/register) to create an account, and [http://localhost:3000/dashboard](http://localhost:3000/dashboard) after sign-in. API docs: [http://localhost:8000/docs](http://localhost:8000/docs).
+
+Copy `frontend/.env.example` and `backend/.env.example` to `.env.local` / `.env` and fill in your Supabase credentials before signing up.
 
 ---
 

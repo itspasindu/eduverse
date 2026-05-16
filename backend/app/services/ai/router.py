@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.models.enums import TutorMode
-from app.services.ai.models import MemeResult, TutorResult
+from app.core.dependencies import require_roles
+from app.models.enums import TutorMode, UserRole
+from app.models.user import UserPublic
+from app.services.ai.models import MemeResult, PresentationResult, TutorResult
 from app.services.ai.orchestrator import AIOrchestrator, get_ai_orchestrator
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -48,4 +50,31 @@ async def ask_tutor(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Tutor request failed: {exc}",
+        ) from exc
+
+
+class PresentationGenerateRequest(BaseModel):
+    notes: str = Field(..., min_length=1, max_length=12000)
+    title: str | None = Field(default=None, max_length=200)
+    font_style: str = Field(default="modern-sans", max_length=40)
+
+
+@router.post("/presentation", response_model=PresentationResult)
+async def generate_presentation(
+    payload: PresentationGenerateRequest,
+    _user: UserPublic = Depends(
+        require_roles(UserRole.CREATOR.value, UserRole.ADMIN.value),
+    ),
+    orchestrator: AIOrchestrator = Depends(get_ai_orchestrator),
+) -> PresentationResult:
+    try:
+        return await orchestrator.generate_presentation(
+            payload.notes,
+            title=payload.title,
+            font_style=payload.font_style,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Presentation generation failed: {exc}",
         ) from exc

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { getAccessToken } from "@/lib/auth";
 import { streamTutor, type TutorMode } from "@/lib/tutor";
 
 type Role = "user" | "assistant";
@@ -63,10 +64,7 @@ export default function TutorChat() {
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
       try {
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("access_token")
-            : null;
+        const token = await getAccessToken();
 
         await streamTutor(
           question,

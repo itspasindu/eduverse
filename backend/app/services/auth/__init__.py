@@ -1,3 +1,1 @@
-from app.services.auth.router import router
-
-__all__ = ["router"]
+# Import router from app.services.auth.router to avoid circular imports via dependencies.
