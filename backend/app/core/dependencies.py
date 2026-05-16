@@ -47,10 +47,9 @@ def get_current_user_public(
             raise
     elif profile and claims:
         fields = claims_to_user_fields(claims)
-        profile = repo.upsert_from_supabase(
+        profile = repo.sync_profile_fields(
             user_id=str(profile.id),
             email=fields.get("email") or profile.email,
-            role=fields.get("role") or profile.role.value,
             full_name=fields.get("full_name") or profile.full_name,
         )
 
@@ -71,6 +70,25 @@ def get_current_user_public(
         )
 
     return UserPublic.model_validate(profile)
+
+
+def require_active_user(
+    user: UserPublic = Depends(get_current_user_public),
+) -> UserPublic:
+    if user.is_suspended:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "account_suspended",
+                "message": (
+                    "Your account is suspended due to repeated inappropriate "
+                    "language. You can still sign out or contact support."
+                ),
+                "strikes": user.moderation_strikes,
+                "suspended": True,
+            },
+        )
+    return user
 
 
 def require_roles(*allowed_roles: str):

@@ -6,6 +6,7 @@ from app.core.dependencies import (
     get_current_user_public,
     require_roles,
 )
+from app.core.moderation.service import enforce_clean_text
 from app.models.enums import UserRole
 from app.models.post import PostPublic
 from app.models.user import UserPublic
@@ -121,6 +122,7 @@ def create_announcement(
     payload: AnnouncementCreate,
     user: UserPublic = Depends(require_roles(UserRole.TEACHER.value, UserRole.ADMIN.value)),
 ) -> AnnouncementPublic:
+    enforce_clean_text(str(user.id), payload.title, payload.body)
     ann = AnnouncementRepository().create(
         author_id=str(user.id),
         title=payload.title.strip(),

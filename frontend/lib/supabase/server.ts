@@ -6,14 +6,8 @@ export async function createClient() {
   const cookieStore = await cookies();
   const url = getSupabaseUrl();
   const anonKey = getSupabaseAnonKey();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
-  const supabaseKey =
-    anonKey && !anonKey.includes("REPLACE_WITH") && !anonKey.startsWith("sb_secret_")
-      ? anonKey
-      : serviceKey!;
-
-  return createServerClient(url, supabaseKey, {
+  return createServerClient(url, anonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

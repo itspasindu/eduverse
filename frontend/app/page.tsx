@@ -26,7 +26,7 @@ export default async function LandingPage() {
               href={user ? "/dashboard" : "/register"}
               className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30"
             >
-              {user ? "Go to dashboard" : "Start free"}
+              {user ? "Open community" : "Start free"}
             </Link>
             <Link
               href="/login"
@@ -53,7 +53,7 @@ export default async function LandingPage() {
           <FeatureCard
             title="Community Feed"
             description="Publish content, browse posts, and track your library."
-            href="/dashboard/feed"
+            href="/dashboard"
           />
         </section>
       </section>

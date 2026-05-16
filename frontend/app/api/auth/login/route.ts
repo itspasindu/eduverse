@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import {
   createRouteHandlerClient,
   friendlyAuthMessage,
 } from "@/lib/supabase/route-handler";
 
 export async function POST(request: Request) {
+  const ip = clientIp(request);
+  if (!checkRateLimit(`login:${ip}`, 15, 60_000)) {
+    return NextResponse.json(
+      { detail: "Too many login attempts. Try again in a minute." },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = await request.json();
     const email = String(body.email ?? "").trim().toLowerCase();

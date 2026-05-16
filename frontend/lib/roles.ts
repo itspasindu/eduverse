@@ -17,8 +17,6 @@ export function roleLabel(role: AppRole): string {
   return labels[role];
 }
 
-export function defaultDashboardPath(role: AppRole): string {
-  if (role === "admin") return "/dashboard/admin";
-  if (role === "teacher") return "/dashboard/teacher";
+export function defaultDashboardPath(_role?: AppRole): string {
   return "/dashboard";
 }

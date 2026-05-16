@@ -43,8 +43,13 @@ export async function fetchDashboard(token: string): Promise<DashboardData> {
   return res.json();
 }
 
-export async function fetchFeedServer(): Promise<Post[]> {
-  const res = await fetch(`${API_BASE}/posts/feed`, { cache: "no-store" });
+export async function fetchFeedServer(token?: string | null): Promise<Post[]> {
+  const headers: HeadersInit = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/posts/feed`, {
+    headers,
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to load feed");
   return res.json();
 }

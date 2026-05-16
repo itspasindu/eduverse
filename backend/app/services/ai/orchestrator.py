@@ -15,7 +15,12 @@ from app.services.ai.helpers.fal import (
     text_to_image,
 )
 from app.services.ai.helpers.llm import TUTOR_MODE_PROMPTS, ask_llm, mock_tutor_answer
-from app.services.ai.helpers.meme_captions import generate_meme_captions
+from app.services.ai.helpers.meme_captions import (
+    build_meme_post_caption,
+    generate_feed_caption,
+    generate_meme_captions,
+)
+from app.services.ai.helpers.presentation_images import attach_slide_images
 from app.services.ai.helpers.presentations import generate_presentation_slides
 from app.services.ai.models import (
     MemeResult,
@@ -55,6 +60,12 @@ class AIOrchestrator:
 
         use_free_captions = self.settings.fal_mock_mode or not self.settings.fal_key
         caption_source = "template" if use_free_captions else "llm"
+        feed_caption = generate_feed_caption(
+            text, captions["top_text"], captions["bottom_text"]
+        )
+        post_caption = build_meme_post_caption(
+            feed_caption, captions["top_text"], captions["bottom_text"]
+        )
 
         return MemeResult(
             image_url=image_url,
@@ -62,6 +73,8 @@ class AIOrchestrator:
             model=self.settings.fal_meme_model,
             top_text=captions["top_text"],
             bottom_text=captions["bottom_text"],
+            feed_caption=feed_caption,
+            post_caption=post_caption,
             caption_source=caption_source,
         )
 
@@ -125,8 +138,9 @@ class AIOrchestrator:
         *,
         title: str | None = None,
         font_style: str = "modern-sans",
+        include_images: bool = True,
     ) -> PresentationResult:
-        """Turn study notes into a structured slide deck with typography style."""
+        """Turn study notes into a structured slide deck with typography and visuals."""
         if not notes.strip():
             raise AIOrchestratorError("Notes cannot be empty")
 
@@ -136,19 +150,32 @@ class AIOrchestrator:
             font_style=font_style,
             settings=self.settings,
         )
+        slide_rows = await attach_slide_images(
+            data["slides"],
+            deck_title=data["title"],
+            font_style=data["font_style"],
+            include_images=include_images,
+            settings=self.settings,
+        )
         slides = [
             PresentationSlide(
                 title=s["title"],
                 bullets=s.get("bullets") or [],
                 speaker_notes=s.get("speaker_notes") or "",
+                image_url=s.get("image_url"),
             )
-            for s in data["slides"]
+            for s in slide_rows
         ]
+        image_model = (
+            self.settings.fal_image_model
+            if include_images and not self.settings.fal_mock_mode
+            else "placeholder"
+        )
         return PresentationResult(
             title=data["title"],
             font_style=data["font_style"],
             slides=slides,
-            model=self.settings.fal_llm_model,
+            model=f"{self.settings.fal_llm_model}+{image_model}",
             source=data.get("source", "llm"),
         )
 
@@ -158,9 +185,10 @@ class AIOrchestrator:
         return (
             f"Humorous photorealistic scene about: {text.strip()}. "
             "Single clear subject, expressive face or situation, meme-worthy composition, "
-            "soft office or desk lighting, 4:3 aspect ratio. "
-            "CRITICAL: absolutely no text, no words, no letters, no numbers, "
-            "no captions, no labels, no watermarks, no logos, no typography anywhere in the image."
+            "soft office or desk lighting, 4:3 aspect ratio, clean background. "
+            "CRITICAL: absolutely no text, no words, no letters, no numbers, no writing, "
+            "no captions, no subtitles, no signs, no labels, no watermarks, no logos, "
+            "no typography, no speech bubbles, no UI elements anywhere in the image."
         )
 
 

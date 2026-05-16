@@ -6,6 +6,8 @@ import {
   getFontPreset,
   type FontStyleId,
 } from "@/lib/presentation-fonts";
+import PresentationDownloadBar from "@/components/PresentationDownloadBar";
+import PresentationSlideView from "@/components/PresentationSlideView";
 import { generatePresentation, type PresentationResponse } from "@/lib/api";
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -17,6 +19,7 @@ export default function PresentationGenerator() {
   const [status, setStatus] = useState<Status>("idle");
   const [deck, setDeck] = useState<PresentationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [includeImages, setIncludeImages] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
 
   const preset = getFontPreset(fontStyle);
@@ -37,6 +40,7 @@ export default function PresentationGenerator() {
       const result = await generatePresentation(trimmed, {
         title: deckTitle.trim() || undefined,
         fontStyle,
+        includeImages,
       });
       setDeck(result);
       setActiveSlide(0);
@@ -45,7 +49,7 @@ export default function PresentationGenerator() {
       setError(err instanceof Error ? err.message : "Generation failed.");
       setStatus("error");
     }
-  }, [notes, deckTitle, fontStyle]);
+  }, [notes, deckTitle, fontStyle, includeImages]);
 
   const handlePrint = () => window.print();
 
@@ -58,8 +62,8 @@ export default function PresentationGenerator() {
         <header className="mb-5">
           <h2 className="text-xl font-semibold tracking-tight">Slide Studio</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Turn notes into a presentation. Pick a font style — typography is
-            applied to every slide in the deck.
+            Turn notes into a presentation with AI visuals per slide. Download
+            JSON, HTML, or images when your deck is ready.
           </p>
         </header>
 
@@ -121,6 +125,17 @@ export default function PresentationGenerator() {
           </div>
         </fieldset>
 
+        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+          <input
+            type="checkbox"
+            checked={includeImages}
+            onChange={(e) => setIncludeImages(e.target.checked)}
+            disabled={isLoading}
+            className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Include AI-generated images on each slide (uses fal.ai; may take longer)
+        </label>
+
         {error && (
           <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
             {error}
@@ -133,59 +148,39 @@ export default function PresentationGenerator() {
           disabled={isLoading}
           className="mt-6 w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 disabled:opacity-50"
         >
-          {isLoading ? "Building slides…" : "Generate presentation"}
+          {isLoading
+            ? includeImages
+              ? "Building slides & images…"
+              : "Building slides…"
+            : "Generate presentation"}
         </button>
       </section>
 
       {deck && slide && (
         <section className="no-print space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-3">
             <div>
               <h3 className={`text-lg font-semibold ${preset.headingClass}`}>
                 {deck.title}
               </h3>
               <p className="text-xs text-zinc-500">
-                {deck.slides.length} slides · {preset.name} · source: {deck.source}
+                {deck.slides.length} slides · {preset.name} · source:{" "}
+                {deck.source}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            >
-              Print / PDF
-            </button>
+            <PresentationDownloadBar
+              deck={deck}
+              activeSlideIndex={activeSlide}
+              onPrint={handlePrint}
+            />
           </div>
 
-          <div
-            className={`slide-deck-print aspect-[16/10] overflow-hidden rounded-2xl border-2 p-8 shadow-xl ${preset.accent}`}
-          >
-            <p className="text-xs uppercase tracking-widest text-zinc-500">
-              Slide {activeSlide + 1} of {deck.slides.length}
-            </p>
-            <h4
-              className={`mt-3 text-2xl sm:text-3xl ${preset.headingClass} text-zinc-900 dark:text-zinc-50`}
-            >
-              {slide.title}
-            </h4>
-            <ul
-              className={`mt-6 space-y-3 text-base sm:text-lg ${preset.bodyClass} text-zinc-800 dark:text-zinc-200`}
-            >
-              {slide.bullets.map((b, i) => (
-                <li key={i} className="flex gap-3">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-            {slide.speaker_notes && (
-              <p
-                className={`mt-8 border-t border-zinc-300/50 pt-4 text-sm italic ${preset.bodyClass} text-zinc-600 dark:text-zinc-400`}
-              >
-                Speaker notes: {slide.speaker_notes}
-              </p>
-            )}
-          </div>
+          <PresentationSlideView
+            slide={slide}
+            slideIndex={activeSlide}
+            totalSlides={deck.slides.length}
+            preset={preset}
+          />
 
           <div className="flex flex-wrap gap-2">
             {deck.slides.map((_, i) => (
@@ -204,19 +199,16 @@ export default function PresentationGenerator() {
             ))}
           </div>
 
-          <div className="hidden print:block">
+          <div className="hidden print:block space-y-8">
             {deck.slides.map((s, i) => (
-              <div
+              <PresentationSlideView
                 key={i}
-                className={`slide-deck-print mb-8 aspect-[16/10] border p-8 ${preset.accent}`}
-              >
-                <h4 className={`text-2xl ${preset.headingClass}`}>{s.title}</h4>
-                <ul className={`mt-4 list-disc pl-6 ${preset.bodyClass}`}>
-                  {s.bullets.map((b, j) => (
-                    <li key={j}>{b}</li>
-                  ))}
-                </ul>
-              </div>
+                slide={s}
+                slideIndex={i}
+                totalSlides={deck.slides.length}
+                preset={preset}
+                className="mb-8"
+              />
             ))}
           </div>
         </section>

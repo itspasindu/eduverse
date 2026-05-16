@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from postgrest.exceptions import APIError
 
+from app.core.url_allowlist import assert_https_url_allowed
 from app.db.supabase_errors import SETUP_HINT, is_missing_table_error
 from app.models.post import PostCreate, PostPublic
 from app.services.content.repository import DatabaseNotSetupError, PostRepository
@@ -11,24 +12,15 @@ class ContentService:
         self.repo = PostRepository()
 
     def create_post(self, user_id: str, data: PostCreate) -> PostPublic:
+        assert_https_url_allowed(str(data.content_url), field="content_url")
         try:
             post = self.repo.create(
-            user_id=user_id,
-            post_type=data.type,
-            content_url=str(data.content_url),
-            caption=data.caption,
+                user_id=user_id,
+                post_type=data.type,
+                content_url=str(data.content_url),
+                caption=data.caption,
             )
         except DatabaseNotSetupError as exc:
-            # #region agent log
-            from app.debug_log import debug_log
-
-            debug_log(
-                "content/service.py:create_post",
-                "Returning 503 SETUP_HINT to client",
-                {"detail": SETUP_HINT[:80]},
-                hypothesis_id="D",
-            )
-            # #endregion
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=SETUP_HINT
             ) from exc

@@ -8,8 +8,8 @@ export default function SlidesPage() {
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Slide Studio</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Creator tool — generate presentation slides from your notes with
-          professional font styles.
+          Generate presentation slides from your notes, then download JSON, HTML,
+          or slide images.
         </p>
       </header>
       <PresentationGenerator />

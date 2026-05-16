@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { supabaseConfigError } from "@/lib/supabase/env";
 import {
@@ -7,6 +8,14 @@ import {
 } from "@/lib/supabase/route-handler";
 
 export async function POST(request: Request) {
+  const ip = clientIp(request);
+  if (!checkRateLimit(`signup:${ip}`, 10, 60_000)) {
+    return NextResponse.json(
+      { detail: "Too many signup attempts. Try again later." },
+      { status: 429 },
+    );
+  }
+
   try {
     const configErr = supabaseConfigError();
     if (configErr) {
@@ -61,7 +70,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // No session: email confirmation may be required — auto-confirm via service role
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        {
+          detail:
+            "Account created. Check your email to confirm your address, then sign in.",
+          needs_confirmation: true,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Development only: auto-confirm via service role when email confirmation is enabled
     try {
       const admin = createAdminClient();
       await admin.auth.admin.updateUserById(data.user.id, {

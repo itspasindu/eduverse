@@ -13,6 +13,9 @@ class Profile:
     created_at: datetime
     updated_at: datetime | None = None
     avatar_url: str | None = None
+    moderation_strikes: int = 0
+    is_suspended: bool = False
+    suspended_at: datetime | None = None
 
 
 @dataclass
@@ -57,6 +60,11 @@ def profile_from_row(row: dict) -> Profile:
         avatar_url=row.get("avatar_url"),
         created_at=_parse_dt(row["created_at"]),
         updated_at=_parse_dt(row["updated_at"]) if row.get("updated_at") else None,
+        moderation_strikes=int(row.get("moderation_strikes") or 0),
+        is_suspended=bool(row.get("is_suspended")),
+        suspended_at=_parse_dt(row["suspended_at"])
+        if row.get("suspended_at")
+        else None,
     )
 
 

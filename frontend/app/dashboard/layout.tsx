@@ -1,4 +1,5 @@
-﻿import DashboardSidebar from "@/components/dashboard/Sidebar";
+﻿import DashboardContent from "@/components/dashboard/DashboardContent";
+import DashboardSidebar from "@/components/dashboard/Sidebar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import { fetchMe } from "@/lib/api-server";
 import { normalizeRole } from "@/lib/roles";
@@ -27,6 +28,9 @@ export default async function DashboardLayout({
   if (token) {
     try {
       const me = await fetchMe(token);
+      if (me.is_suspended) {
+        redirect("/suspended");
+      }
       role = normalizeRole(me.role);
     } catch {
       // Fall back to JWT metadata
@@ -34,10 +38,10 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)]">
+    <div className="flex min-h-[calc(100vh-3.5rem)] items-start">
       <DashboardSidebar role={role} />
       <main className="flex-1 overflow-y-auto p-4 pb-20 md:p-8 md:pb-8">
-        <div className="mx-auto max-w-4xl">{children}</div>
+        <DashboardContent>{children}</DashboardContent>
       </main>
       <MobileNav role={role} />
     </div>

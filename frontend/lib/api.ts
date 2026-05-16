@@ -1,4 +1,8 @@
 import { getAccessToken } from "@/lib/auth";
+import {
+  isAccountSuspendedDetail,
+  parseApiDetail,
+} from "@/lib/moderation-error";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -8,6 +12,8 @@ export type MemeGenerateResponse = {
   model: string;
   top_text: string;
   bottom_text: string;
+  feed_caption?: string;
+  post_caption?: string;
   caption_source?: string;
 };
 
@@ -19,7 +25,23 @@ export type Post = {
   caption: string | null;
   likes: number;
   comments: number;
+  liked_by_me?: boolean;
   created_at: string;
+};
+
+export type PostComment = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  author_name: string | null;
+};
+
+export type LikeToggleResult = {
+  post_id: string;
+  likes: number;
+  liked: boolean;
 };
 
 export type AdminOverview = {
@@ -35,6 +57,8 @@ export type AdminUserRow = {
   full_name: string | null;
   role: string;
   created_at: string;
+  moderation_strikes?: number;
+  is_suspended?: boolean;
 };
 
 export type AdminPostRow = Post & {
@@ -72,6 +96,8 @@ export type UserProfile = {
   full_name: string | null;
   avatar_url: string | null;
   created_at: string;
+  moderation_strikes?: number;
+  is_suspended?: boolean;
 };
 
 export type DashboardData = {
@@ -92,10 +118,19 @@ async function authHeaders(): Promise<HeadersInit> {
   return headers;
 }
 
+function throwApiError(body: unknown, fallback: string): never {
+  const detail = (body as { detail?: unknown })?.detail;
+  if (isAccountSuspendedDetail(detail) && typeof window !== "undefined") {
+    window.location.href = "/suspended";
+  }
+  throw new Error(parseApiDetail(detail) || fallback);
+}
+
 export type PresentationSlide = {
   title: string;
   bullets: string[];
   speaker_notes: string;
+  image_url?: string | null;
 };
 
 export type PresentationResponse = {
@@ -108,7 +143,11 @@ export type PresentationResponse = {
 
 export async function generatePresentation(
   notes: string,
-  options?: { title?: string; fontStyle?: string },
+  options?: {
+    title?: string;
+    fontStyle?: string;
+    includeImages?: boolean;
+  },
 ): Promise<PresentationResponse> {
   const headers = await authHeaders();
   const res = await fetch(`${API_BASE}/ai/presentation`, {
@@ -118,18 +157,13 @@ export async function generatePresentation(
       notes,
       title: options?.title ?? null,
       font_style: options?.fontStyle ?? "modern-sans",
+      include_images: options?.includeImages ?? true,
     }),
   });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const detail =
-      typeof body.detail === "string"
-        ? body.detail
-        : res.status === 403
-          ? "Slide Studio is for Creator accounts. Register as a creator or ask an admin to upgrade your role."
-          : "Failed to generate presentation.";
-    throw new Error(detail);
+    throw new Error(parseApiDetail(body.detail) || "Failed to generate presentation.");
   }
 
   return res.json();
@@ -145,11 +179,7 @@ export async function generateMeme(text: string): Promise<MemeGenerateResponse> 
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const detail =
-      typeof body.detail === "string"
-        ? body.detail
-        : "Failed to generate meme. Please try again.";
-    throw new Error(detail);
+    throw new Error(parseApiDetail(body.detail) || "Failed to generate meme. Please try again.");
   }
 
   return res.json();
@@ -186,8 +216,52 @@ export async function fetchMyPosts(): Promise<Post[]> {
 }
 
 export async function fetchFeed(): Promise<Post[]> {
-  const res = await fetch(`${API_BASE}/posts/feed`);
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/posts/feed`, {
+    headers,
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to load feed");
+  return res.json();
+}
+
+export async function togglePostLike(postId: string): Promise<LikeToggleResult> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throwApiError(body, "Failed to update like");
+  }
+  return res.json();
+}
+
+export async function fetchPostComments(postId: string): Promise<PostComment[]> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+    headers,
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Failed to load comments");
+  return res.json();
+}
+
+export async function addPostComment(
+  postId: string,
+  body: string,
+): Promise<PostComment> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseApiDetail(err.detail) || "Failed to post comment");
+  }
   return res.json();
 }
 
@@ -204,6 +278,19 @@ export async function fetchDashboard(): Promise<DashboardData> {
   const headers = await authHeaders();
   const res = await fetch(`${API_BASE}/dashboard`, { headers });
   if (!res.ok) throw new Error("Failed to load dashboard");
+  return res.json();
+}
+
+export async function unsuspendUser(userId: string): Promise<AdminUserRow> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/admin/users/${userId}/unsuspend`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(parseApiDetail(body.detail) || "Failed to restore user");
+  }
   return res.json();
 }
 
@@ -296,4 +383,85 @@ export async function fetchTeacherAnnouncements(): Promise<Announcement[]> {
   const res = await fetch(`${API_BASE}/teacher/announcements`, { headers });
   if (!res.ok) throw new Error("Failed to load announcements");
   return res.json();
+}
+
+export type AuditEventRow = {
+  id: string;
+  actor_id: string;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  metadata: Record<string, unknown>;
+  ip_address: string | null;
+  created_at: string;
+};
+
+export type ContentReportRow = {
+  id: string;
+  reporter_id: string;
+  target_type: string;
+  target_id: string;
+  reason: string | null;
+  status: string;
+  created_at: string;
+};
+
+export async function reportContent(payload: {
+  target_type: "post" | "comment";
+  target_id: string;
+  reason?: string;
+}): Promise<{ id: string; status: string }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/reports`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throwApiError(body, "Failed to submit report");
+  }
+  return res.json();
+}
+
+export async function fetchAuditEvents(): Promise<AuditEventRow[]> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/admin/audit`, { headers });
+  if (!res.ok) throw new Error("Failed to load audit log");
+  return res.json();
+}
+
+export async function fetchPendingReports(): Promise<ContentReportRow[]> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/admin/reports`, { headers });
+  if (!res.ok) throw new Error("Failed to load reports");
+  return res.json();
+}
+
+export async function reviewReport(
+  reportId: string,
+  status: "reviewed" | "dismissed",
+): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(
+    `${API_BASE}/admin/reports/${reportId}?status=${status}`,
+    { method: "PATCH", headers },
+  );
+  if (!res.ok) throw new Error("Failed to update report");
+}
+
+export async function exportMyData(): Promise<Record<string, unknown>> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/me/export`, { headers });
+  if (!res.ok) throw new Error("Failed to export data");
+  return res.json();
+}
+
+export async function deleteMyAccount(): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/me`, { method: "DELETE", headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throwApiError(body, "Failed to delete account");
+  }
 }

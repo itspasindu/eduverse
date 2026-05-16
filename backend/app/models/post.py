@@ -20,6 +20,7 @@ class PostPublic(BaseModel):
     caption: str | None
     likes: int
     comments: int
+    liked_by_me: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

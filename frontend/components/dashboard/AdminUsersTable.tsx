@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { AdminUserRow } from "@/lib/api";
-import { updateUserRole } from "@/lib/api";
+import { unsuspendUser, updateUserRole } from "@/lib/api";
 
 const ROLES = ["student", "creator", "teacher", "admin"] as const;
 
@@ -31,6 +31,30 @@ export default function AdminUsersTable({
     }
   }
 
+  async function onUnsuspend(userId: string) {
+    setBusyId(userId);
+    setMessage(null);
+    try {
+      const updated = await unsuspendUser(userId);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? {
+                ...u,
+                is_suspended: updated.is_suspended,
+                moderation_strikes: updated.moderation_strikes,
+              }
+            : u,
+        ),
+      );
+      setMessage("User restored. They can sign in again.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Restore failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div>
       {message && (
@@ -45,6 +69,7 @@ export default function AdminUsersTable({
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Moderation</th>
               <th className="px-4 py-3">Joined</th>
             </tr>
           </thead>
@@ -73,6 +98,24 @@ export default function AdminUsersTable({
                       </option>
                     ))}
                   </select>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-zinc-500">
+                      Strikes: {user.moderation_strikes ?? 0}
+                      {user.is_suspended ? " · Suspended" : ""}
+                    </span>
+                    {user.is_suspended && (
+                      <button
+                        type="button"
+                        disabled={busyId === user.id}
+                        onClick={() => onUnsuspend(user.id)}
+                        className="w-fit rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+                      >
+                        Restore account
+                      </button>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-zinc-500">
                   {new Date(user.created_at).toLocaleDateString()}

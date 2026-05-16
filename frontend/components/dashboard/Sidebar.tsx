@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navLinksForRole } from "@/lib/dashboard-nav";
+import { COMMUNITY_HOME, navLinksForRole } from "@/lib/dashboard-nav";
 import type { AppRole } from "@/lib/roles";
 import { roleLabel } from "@/lib/roles";
 
@@ -10,10 +10,10 @@ export default function DashboardSidebar({ role }: { role: AppRole }) {
   const pathname = usePathname();
   const links = navLinksForRole(role);
   const section =
-    role === "admin" ? "Admin" : role === "teacher" ? "Teaching" : "Workspace";
+    role === "admin" ? "Admin" : role === "teacher" ? "Teaching" : "Community";
 
   return (
-    <aside className="hidden w-56 shrink-0 border-r border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50 md:block">
+    <aside className="sticky top-14 z-40 hidden h-[calc(100vh-3.5rem)] w-56 shrink-0 overflow-y-auto border-r border-zinc-200 bg-zinc-50/80 p-4 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/80 md:block">
       <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
         {section}
       </p>
@@ -24,7 +24,7 @@ export default function DashboardSidebar({ role }: { role: AppRole }) {
         {links.map((link) => {
           const active =
             pathname === link.href ||
-            (link.href !== "/dashboard" &&
+            (link.href !== COMMUNITY_HOME &&
               link.href !== "/dashboard/admin" &&
               link.href !== "/dashboard/teacher" &&
               pathname.startsWith(link.href));

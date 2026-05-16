@@ -1,4 +1,4 @@
-"""Debug session logging (NDJSON). Session 834be7."""
+"""Optional debug logging (disabled in production)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,14 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
+from app.config import get_settings
+
 LOG_PATH = Path(__file__).resolve().parents[2] / "debug-834be7.log"
 SESSION_ID = "834be7"
+
+
+def _enabled() -> bool:
+    return not get_settings().is_production
 
 
 def _project_ref(url: str) -> str:
@@ -27,6 +33,8 @@ def debug_log(
     hypothesis_id: str | None = None,
     run_id: str = "pre-fix",
 ) -> None:
+    if not _enabled():
+        return
     payload = {
         "sessionId": SESSION_ID,
         "timestamp": int(time.time() * 1000),
@@ -36,10 +44,8 @@ def debug_log(
         "hypothesisId": hypothesis_id,
         "runId": run_id,
     }
-    # #region agent log
     with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(payload, default=str) + "\n")
-    # #endregion
 
 
 def supabase_context(settings) -> dict:

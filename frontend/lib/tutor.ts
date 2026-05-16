@@ -1,3 +1,5 @@
+import { parseApiDetail } from "@/lib/moderation-error";
+
 export type TutorMode = "standard" | "simple" | "meme";
 
 export type StreamEvent =
@@ -23,9 +25,7 @@ export async function streamTutor(
 
   if (!res.ok || !res.body) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(
-      typeof err.detail === "string" ? err.detail : "Tutor request failed",
-    );
+    throw new Error(parseApiDetail(err.detail) || "Tutor request failed");
   }
 
   const reader = res.body.getReader();

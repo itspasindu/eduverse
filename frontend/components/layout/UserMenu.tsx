@@ -102,7 +102,15 @@ export default function UserMenu({ email, fullName, avatarUrl, role }: Props) {
             className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
             onClick={() => setOpen(false)}
           >
-            Dashboard
+            Community home
+          </Link>
+          <Link
+            href="/dashboard/overview"
+            role="menuitem"
+            className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            onClick={() => setOpen(false)}
+          >
+            Overview & stats
           </Link>
           <Link
             href="/dashboard/settings"

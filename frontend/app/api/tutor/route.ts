@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/server";
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type TutorMode = "standard" | "simple" | "meme";
@@ -20,6 +22,19 @@ function sleep(ms: number) {
 }
 
 export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return Response.json({ detail: "Sign in to use the tutor." }, { status: 401 });
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   let body: TutorRequestBody;
   try {
     body = await request.json();
@@ -31,13 +46,11 @@ export async function POST(request: Request) {
     return Response.json({ detail: "Question is required" }, { status: 400 });
   }
 
-  const auth = request.headers.get("authorization");
-
   const backendRes = await fetch(`${BACKEND_URL}/ai/tutor`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(auth ? { Authorization: auth } : {}),
+      Authorization: `Bearer ${session?.access_token ?? ""}`,
     },
     body: JSON.stringify({
       question: body.question.trim(),

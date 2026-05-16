@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import random
 import re
 from typing import Any
 
@@ -119,3 +120,57 @@ async def generate_meme_captions(
         pass
 
     return free_meme_captions(topic)
+
+
+FEED_CAPTION_TEMPLATES = [
+    "This one broke my brain today 🤯",
+    "Tag someone who needs to see this",
+    "Study mood in one picture",
+    "When the lecture finally makes sense",
+    "Me explaining this to my group chat",
+    "Certified EduVerse moment",
+    "No thoughts just vibes (and bugs)",
+    "POV: you opened the assignment at midnight",
+    "Sending this to the study group",
+    "Why is this so accurate though",
+    "Another day in the learning trenches",
+    "I felt this in my soul",
+    "The algorithm knew I needed this",
+    "Saving this for exam season",
+    "Can't stop thinking about this topic",
+]
+
+
+def _overlay_signature(top: str, bottom: str) -> str:
+    return f"{top.strip().upper()}|{bottom.strip().upper()}"
+
+
+def generate_feed_caption(topic: str, top_text: str, bottom_text: str) -> str:
+    """Social feed caption — always different from meme overlay lines."""
+    topic = topic.strip() or "this topic"
+    overlay_sig = _overlay_signature(top_text, bottom_text)
+    overlay_joined = " / ".join(
+        x for x in (top_text.strip(), bottom_text.strip()) if x
+    ).upper()
+
+    candidates = list(FEED_CAPTION_TEMPLATES)
+    random.shuffle(candidates)
+
+    for pick in candidates:
+        if _overlay_signature(pick, "") != overlay_sig and pick.upper() != overlay_joined:
+            return pick[:200]
+
+    return f"Learning about {topic[:50]} — what do you think?"[:200]
+
+
+def build_meme_post_caption(feed_caption: str, top_text: str, bottom_text: str) -> str:
+    """JSON stored in posts.caption: overlay text + separate feed caption."""
+    return json.dumps(
+        {
+            "kind": "meme",
+            "feed": feed_caption,
+            "top": top_text,
+            "bottom": bottom_text,
+        },
+        ensure_ascii=False,
+    )

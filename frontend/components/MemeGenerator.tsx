@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import MemeCard from "@/components/MemeCard";
 import { generateMeme, savePost } from "@/lib/api";
+import { feedCaptionText } from "@/lib/meme-post";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -35,6 +36,7 @@ export default function MemeGenerator({ saveToLibrary = false }: Props) {
     setStatus("loading");
     setError(null);
     setMeme(null);
+    setPostCaption(null);
     setSaved(false);
 
     try {
@@ -44,6 +46,7 @@ export default function MemeGenerator({ saveToLibrary = false }: Props) {
         topText: result.top_text || "",
         bottomText: result.bottom_text || "",
       });
+      setPostCaption(result.post_caption ?? null);
       setStatus("success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -52,9 +55,7 @@ export default function MemeGenerator({ saveToLibrary = false }: Props) {
   }, [text]);
 
   const isLoading = status === "loading";
-  const captionForSave = meme
-    ? [meme.topText, meme.bottomText].filter(Boolean).join(" / ")
-    : text.trim();
+  const [postCaption, setPostCaption] = useState<string | null>(null);
 
   return (
     <div className="mx-auto w-full max-w-xl rounded-2xl border border-violet-500/20 bg-white/80 p-6 shadow-xl shadow-violet-500/10 backdrop-blur dark:bg-zinc-900/80">
@@ -114,6 +115,14 @@ export default function MemeGenerator({ saveToLibrary = false }: Props) {
             topText={meme.topText}
             bottomText={meme.bottomText}
           />
+          {feedCaptionText(postCaption) && (
+            <p className="text-center text-xs text-zinc-500">
+              Community caption:{" "}
+              <span className="text-zinc-700 dark:text-zinc-300">
+                {feedCaptionText(postCaption)}
+              </span>
+            </p>
+          )}
           {saveToLibrary && (
             <figcaption className="flex gap-2">
               <button
@@ -122,7 +131,7 @@ export default function MemeGenerator({ saveToLibrary = false }: Props) {
                 onClick={async () => {
                   setSaving(true);
                   try {
-                    await savePost(meme.imageUrl, captionForSave);
+                    await savePost(meme.imageUrl, postCaption ?? undefined);
                     setSaved(true);
                   } catch (err) {
                     setError(

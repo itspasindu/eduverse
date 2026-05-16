@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
-import { updateProfile, uploadAvatar } from "@/lib/api";
+import { deleteMyAccount, exportMyData, updateProfile, uploadAvatar } from "@/lib/api";
 import { roleLabel, type AppRole } from "@/lib/roles";
 
 type Props = {
@@ -168,6 +168,61 @@ export default function SettingsForm({
       <p className="text-xs text-zinc-400">
         Role changes are managed by administrators in the Admin Console.
       </p>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          Data & account
+        </h2>
+        <p className="mt-2 text-xs text-zinc-500">
+          Export your profile and posts, or permanently delete your account.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            onClick={async () => {
+              try {
+                const data = await exportMyData();
+                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                  type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "eduverse-export.json";
+                a.click();
+                URL.revokeObjectURL(url);
+                setMessage("Export downloaded.");
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Export failed");
+              }
+            }}
+          >
+            Export my data
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300"
+            onClick={async () => {
+              if (
+                !confirm(
+                  "Delete your account and all posts? This cannot be undone.",
+                )
+              ) {
+                return;
+              }
+              try {
+                await deleteMyAccount();
+                window.location.href = "/auth/signout";
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Delete failed");
+              }
+            }}
+          >
+            Delete account
+          </button>
+        </div>
+      </section>
     </form>
   );
 }

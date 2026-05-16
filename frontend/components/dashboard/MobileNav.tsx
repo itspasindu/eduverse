@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { mobileLinksForRole } from "@/lib/dashboard-nav";
+import { COMMUNITY_HOME, mobileLinksForRole } from "@/lib/dashboard-nav";
 import type { AppRole } from "@/lib/roles";
 
 export default function MobileNav({ role }: { role: AppRole }) {
@@ -13,7 +13,9 @@ export default function MobileNav({ role }: { role: AppRole }) {
     <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden dark:border-zinc-800 dark:bg-zinc-950/95">
       {links.map((link) => {
         const active =
-          pathname === link.href || pathname.startsWith(`${link.href}/`);
+          link.href === COMMUNITY_HOME
+            ? pathname === COMMUNITY_HOME
+            : pathname === link.href || pathname.startsWith(`${link.href}/`);
         return (
           <Link
             key={link.href}

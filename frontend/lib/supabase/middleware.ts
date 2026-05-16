@@ -7,13 +7,8 @@ export async function updateSession(request: NextRequest) {
 
   const url = getSupabaseUrl();
   const anonKey = getSupabaseAnonKey();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const supabaseKey =
-    anonKey && !anonKey.includes("REPLACE_WITH") && !anonKey.startsWith("sb_secret_")
-      ? anonKey
-      : serviceKey!;
 
-  const supabase = createServerClient(url, supabaseKey, {
+  const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -41,6 +36,7 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/auth");
   const isSignOut = path === "/auth/signout";
   const isProtected = path.startsWith("/dashboard");
+  const isSuspendedPage = path === "/suspended";
 
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
@@ -52,6 +48,12 @@ export async function updateSession(request: NextRequest) {
   if (user && isAuthRoute && !isSignOut && !path.startsWith("/auth/callback")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (!user && isSuspendedPage) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
     return NextResponse.redirect(redirectUrl);
   }
 

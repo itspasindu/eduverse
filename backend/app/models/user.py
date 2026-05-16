@@ -13,6 +13,8 @@ class UserPublic(BaseModel):
     full_name: str | None = None
     avatar_url: str | None = None
     created_at: datetime
+    moderation_strikes: int = 0
+    is_suspended: bool = False
 
     model_config = {"from_attributes": True}
 

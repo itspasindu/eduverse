@@ -30,7 +30,8 @@ Return ONLY valid JSON with this exact shape:
     {
       "title": "Slide heading",
       "bullets": ["point one", "point two", "point three"],
-      "speaker_notes": "What the presenter should say (1-2 sentences)"
+      "speaker_notes": "What the presenter should say (1-2 sentences)",
+      "image_prompt": "Short visual description for an illustration (no text in image)"
     }
   ]
 }
@@ -131,11 +132,13 @@ def _parse_presentation_json(raw: str) -> dict[str, Any] | None:
             bullets = [str(b).strip() for b in bullets_raw if str(b).strip()]
         if not bullets:
             bullets = ["—"]
+        image_prompt = str(item.get("image_prompt") or "").strip()[:300]
         slides.append(
             {
                 "title": title[:120],
                 "bullets": bullets[:5],
                 "speaker_notes": str(item.get("speaker_notes") or "").strip()[:500],
+                "image_prompt": image_prompt,
             }
         )
 

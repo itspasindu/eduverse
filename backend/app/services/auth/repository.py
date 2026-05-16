@@ -1,5 +1,8 @@
+from datetime import datetime, timezone
+
 from postgrest.exceptions import APIError
 
+from app.core.moderation.words import STRIKES_BEFORE_SUSPEND
 from app.db import Profile, get_supabase, profile_from_claims, profile_from_row
 from app.db.supabase_errors import is_missing_table_error
 from app.db.supabase_response import response_data
@@ -179,6 +182,95 @@ class ProfileRepository:
             result = (
                 self.client.table("profiles")
                 .update(updates)
+                .eq("id", user_id)
+                .execute()
+            )
+        except APIError as exc:
+            if is_missing_table_error(exc, "profiles"):
+                return None
+            raise
+        data = response_data(result)
+        if isinstance(data, list):
+            data = data[0] if data else None
+        return profile_from_row(data) if data else None
+
+    def sync_profile_fields(
+        self,
+        user_id: str,
+        *,
+        email: str | None = None,
+        full_name: str | None = None,
+    ) -> Profile | None:
+        """Sync email/name from JWT only — role stays DB-authoritative."""
+        profile = self.get_by_id(user_id)
+        if not profile:
+            return None
+        updates: dict[str, str] = {}
+        if email and email.lower() != profile.email:
+            updates["email"] = email.lower()
+        if full_name is not None and full_name != (profile.full_name or ""):
+            updates["full_name"] = full_name
+        if not updates:
+            return profile
+        try:
+            result = (
+                self.client.table("profiles")
+                .update(updates)
+                .eq("id", user_id)
+                .execute()
+            )
+        except APIError as exc:
+            if is_missing_table_error(exc, "profiles"):
+                return profile
+            raise
+        data = response_data(result)
+        if isinstance(data, list):
+            data = data[0] if data else None
+        return profile_from_row(data) if data else profile
+
+    def record_moderation_strike(self, user_id: str) -> tuple[int, bool]:
+        profile = self.get_by_id(user_id)
+        if not profile:
+            return 1, False
+
+        strikes = profile.moderation_strikes + 1
+        suspend = strikes >= STRIKES_BEFORE_SUSPEND
+        updates: dict = {"moderation_strikes": strikes}
+        if suspend:
+            updates["is_suspended"] = True
+            updates["suspended_at"] = datetime.now(timezone.utc).isoformat()
+
+        try:
+            result = (
+                self.client.table("profiles")
+                .update(updates)
+                .eq("id", user_id)
+                .execute()
+            )
+        except APIError as exc:
+            if is_missing_table_error(exc, "profiles"):
+                return strikes, suspend
+            raise
+
+        data = response_data(result)
+        if isinstance(data, list):
+            data = data[0] if data else None
+        if data:
+            row = profile_from_row(data)
+            return row.moderation_strikes, row.is_suspended
+        return strikes, suspend
+
+    def clear_moderation(self, user_id: str) -> Profile | None:
+        try:
+            result = (
+                self.client.table("profiles")
+                .update(
+                    {
+                        "moderation_strikes": 0,
+                        "is_suspended": False,
+                        "suspended_at": None,
+                    }
+                )
                 .eq("id", user_id)
                 .execute()
             )
