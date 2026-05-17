@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-﻿import DashboardContent from "@/components/dashboard/DashboardContent";
-=======
->>>>>>> 44a09b9 (Added new files)
+import DashboardContent from "@/components/dashboard/DashboardContent";
 import DashboardSidebar from "@/components/dashboard/Sidebar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import { fetchMe, fetchMySubscriptionServer } from "@/lib/api-server";

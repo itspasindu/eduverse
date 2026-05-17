@@ -1,17 +1,7 @@
-<<<<<<< HEAD
-from functools import lru_cache
-<<<<<<< HEAD
-from typing import Literal
-
-from pydantic import field_validator
-=======
-=======
->>>>>>> 44a09b9 (Added new files)
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AliasChoices, Field, field_validator, model_validator
->>>>>>> 140e298 (Save local progress)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Always load backend/.env regardless of process working directory
@@ -119,7 +109,6 @@ class Settings(BaseSettings):
         r"192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$"
     )
 
-<<<<<<< HEAD
     @field_validator("allowed_url_hosts", "cors_origins", mode="before")
     @classmethod
     def split_csv(cls, value: object) -> object:
@@ -133,11 +122,19 @@ class Settings(BaseSettings):
 
     @property
     def public_paths(self) -> tuple[str, ...]:
-        base = ("/health", "/ws/feed")
+        base = (
+            "/health",
+            "/ws/feed",
+            "/subscriptions/plans",
+            "/subscriptions/payhere/notify",
+            "/subscriptions/payhere/return",
+            "/subscriptions/payhere/cancel",
+        )
         if not self.is_production:
             return (
                 *base,
                 "/posts/feed",
+                "/ai/meme",
                 "/docs",
                 "/redoc",
                 "/openapi.json",
@@ -162,21 +159,6 @@ class Settings(BaseSettings):
             raise RuntimeError(
                 f"Missing required production env vars: {', '.join(missing)}"
             )
-=======
-    public_paths: tuple[str, ...] = (
-        "/posts/feed",
-        "/subscriptions/plans",
-        "/subscriptions/payhere/notify",
-        "/subscriptions/payhere/return",
-        "/subscriptions/payhere/cancel",
-        "/ai/meme",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
-        "/health",
-        "/health/db",
-    )
->>>>>>> 140e298 (Save local progress)
 
     @field_validator(
         "supabase_url",

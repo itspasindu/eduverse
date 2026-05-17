@@ -150,14 +150,14 @@ async function authHeaders(): Promise<HeadersInit> {
   return headers;
 }
 
-<<<<<<< HEAD
 function throwApiError(body: unknown, fallback: string): never {
   const detail = (body as { detail?: unknown })?.detail;
   if (isAccountSuspendedDetail(detail) && typeof window !== "undefined") {
     window.location.href = "/suspended";
   }
   throw new Error(parseApiDetail(detail) || fallback);
-=======
+}
+
 async function parseApiError(res: Response, fallback: string): Promise<string> {
   try {
     const body = await res.json();
@@ -177,7 +177,6 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
       "Cannot reach the server. Start the backend (cd backend && uvicorn main:app --reload) and refresh.",
     );
   }
->>>>>>> 140e298 (Save local progress)
 }
 
 export type PresentationSlide = {
@@ -612,7 +611,6 @@ export async function fetchTeacherAnnouncements(): Promise<Announcement[]> {
   return res.json();
 }
 
-<<<<<<< HEAD
 export type AuditEventRow = {
   id: string;
   actor_id: string;
@@ -643,7 +641,15 @@ export async function reportContent(payload: {
   const res = await fetch(`${API_BASE}/reports`, {
     method: "POST",
     headers,
-=======
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throwApiError(body, "Failed to submit report");
+  }
+  return res.json();
+}
+
 export async function fetchSubscriptionPlans(): Promise<SubscriptionPlan[]> {
   const res = await fetch(`${API_BASE}/subscriptions/plans`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to load plans");
@@ -736,13 +742,11 @@ export async function updateUserSubscription(
   const res = await fetch(`${API_BASE}/admin/users/${userId}/subscription`, {
     method: "PATCH",
     headers,
->>>>>>> 44a09b9 (Added new files)
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-<<<<<<< HEAD
-    throwApiError(body, "Failed to submit report");
+    throwApiError(body, "Failed to update subscription");
   }
   return res.json();
 }
@@ -788,11 +792,3 @@ export async function deleteMyAccount(): Promise<void> {
     throwApiError(body, "Failed to delete account");
   }
 }
-=======
-    throw new Error(
-      typeof body.detail === "string" ? body.detail : "Failed to update subscription",
-    );
-  }
-  return res.json();
-}
->>>>>>> 44a09b9 (Added new files)

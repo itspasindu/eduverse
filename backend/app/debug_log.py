@@ -9,8 +9,8 @@ from urllib.parse import urlparse
 
 from app.config import get_settings
 
-LOG_PATH = Path(__file__).resolve().parents[2] / "debug-834be7.log"
-SESSION_ID = "834be7"
+LOG_PATH = Path(__file__).resolve().parents[2].parent / "debug-ba63c3.log"
+SESSION_ID = "ba63c3"
 
 
 def _enabled() -> bool:

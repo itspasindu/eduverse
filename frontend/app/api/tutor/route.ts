@@ -17,9 +17,9 @@ type AgentStep = {
   output?: string | null;
 };
 
-type AgentBackendResponse = {
+type TutorBackendResponse = {
   answer: string;
-  message: string;
+  question: string;
   model: string;
   mode: string;
   steps: AgentStep[];
@@ -30,7 +30,6 @@ function sleep(ms: number) {
 }
 
 export async function POST(request: Request) {
-<<<<<<< HEAD
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,13 +43,6 @@ export async function POST(request: Request) {
     data: { session },
   } = await supabase.auth.getSession();
 
-=======
-  const auth = request.headers.get("authorization");
-  if (!auth) {
-    return Response.json({ detail: "Sign in to use the AI tutor." }, { status: 401 });
-  }
-
->>>>>>> 140e298 (Save local progress)
   let body: TutorRequestBody;
   try {
     body = await request.json();
@@ -62,25 +54,17 @@ export async function POST(request: Request) {
     return Response.json({ detail: "Question is required" }, { status: 400 });
   }
 
-<<<<<<< HEAD
   const backendRes = await fetch(`${BACKEND_URL}/ai/tutor`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${session?.access_token ?? ""}`,
-=======
-  const backendRes = await fetch(`${BACKEND_URL}/ai/agent/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: auth,
->>>>>>> 140e298 (Save local progress)
     },
     body: JSON.stringify({
-      message: body.question.trim(),
+      question: body.question.trim(),
       mode: body.mode ?? "standard",
       character_id: body.character_id ?? null,
-      material_ids: [],
+      context: null,
     }),
   });
 
@@ -92,7 +76,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const data = (await backendRes.json()) as AgentBackendResponse;
+  const data = (await backendRes.json()) as TutorBackendResponse;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

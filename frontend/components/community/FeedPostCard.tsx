@@ -60,6 +60,32 @@ export default function FeedPostCard({
   );
 
   useEffect(() => {
+    if (safeImageUrl || post.type !== "video") return;
+    // #region agent log
+    fetch("http://127.0.0.1:7574/ingest/3c6afa58-30ac-4e5e-9854-7a3b8425de96", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "ba63c3",
+      },
+      body: JSON.stringify({
+        sessionId: "ba63c3",
+        location: "FeedPostCard.tsx:imageUnavailable",
+        message: "feed post has no displayable image",
+        data: {
+          postId: post.id,
+          postType: post.type,
+          content_url: post.content_url?.slice(0, 120),
+          allowed: isAllowedImageUrl(post.content_url),
+        },
+        timestamp: Date.now(),
+        hypothesisId: "H5",
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [post.id, post.type, post.content_url, safeImageUrl]);
+
+  useEffect(() => {
     setLiked(post.liked_by_me ?? false);
     setLikes(post.likes);
     setCommentsCount(post.comments);

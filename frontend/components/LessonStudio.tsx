@@ -67,6 +67,23 @@ function LessonVideoPlayer({
         });
         if (!res.ok) {
           const detail = await res.text().catch(() => "");
+          // #region agent log
+          fetch("http://127.0.0.1:7574/ingest/3c6afa58-30ac-4e5e-9854-7a3b8425de96", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Debug-Session-Id": "ba63c3",
+            },
+            body: JSON.stringify({
+              sessionId: "ba63c3",
+              location: "LessonStudio.tsx:LessonVideoPlayer",
+              message: "video fetch failed",
+              data: { jobId, path, status: res.status, detail: detail.slice(0, 120) },
+              timestamp: Date.now(),
+              hypothesisId: "H3-H4",
+            }),
+          }).catch(() => {});
+          // #endregion
           if (!cancelled) {
             setLoadError(
               detail.includes("not ready")
@@ -199,6 +216,33 @@ export default function LessonStudio() {
   const lessonVideoUrl = job?.playlist_url ?? null;
   const isAudioOnly = isLessonAudioOnlyUrl(lessonVideoUrl);
   const coverImage = job?.cover_image_url ?? null;
+
+  useEffect(() => {
+    if (job?.status !== "completed") return;
+    // #region agent log
+    fetch("http://127.0.0.1:7574/ingest/3c6afa58-30ac-4e5e-9854-7a3b8425de96", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "ba63c3",
+      },
+      body: JSON.stringify({
+        sessionId: "ba63c3",
+        location: "LessonStudio.tsx:jobCompleted",
+        message: "lesson job completed",
+        data: {
+          jobId: job.job_id,
+          playlist_url: lessonVideoUrl,
+          isAudioOnly,
+          video_mode: job.video_mode,
+          has_cover: Boolean(coverImage),
+        },
+        timestamp: Date.now(),
+        hypothesisId: "H2-H4",
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [job?.status, job?.job_id, job?.video_mode, lessonVideoUrl, isAudioOnly, coverImage]);
 
   async function onSaveToLibrary() {
     if (!lessonVideoUrl || isAudioOnly) return;

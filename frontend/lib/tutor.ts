@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-import { parseApiDetail } from "@/lib/moderation-error";
-=======
 import { getAccessToken } from "@/lib/auth";
->>>>>>> 140e298 (Save local progress)
+import { parseApiDetail } from "@/lib/moderation-error";
 
 export type TutorMode = "standard" | "simple" | "meme";
 

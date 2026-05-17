@@ -19,10 +19,7 @@ from app.services.subscriptions import router as subscriptions_router
 from app.services.payments import router as payments_router
 
 settings = get_settings()
-<<<<<<< HEAD
 settings.validate_production_secrets()
-=======
->>>>>>> 140e298 (Save local progress)
 
 app = FastAPI(
     title="EduVerse AI",
@@ -33,11 +30,7 @@ app = FastAPI(
     openapi_url=None if settings.is_production else "/openapi.json",
 )
 
-<<<<<<< HEAD
 app.add_middleware(BodyLimitMiddleware)
-=======
-# JWT runs inside CORS so preflight OPTIONS always gets CORS headers.
->>>>>>> 140e298 (Save local progress)
 app.add_middleware(JWTAuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -55,12 +48,9 @@ app.include_router(characters_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(teacher_router)
-<<<<<<< HEAD
 app.include_router(social_router)
-=======
 app.include_router(subscriptions_router)
 app.include_router(payments_router)
->>>>>>> 44a09b9 (Added new files)
 
 
 @app.exception_handler(Exception)

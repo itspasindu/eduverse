@@ -26,6 +26,7 @@ from app.services.ai.pipelines.lesson_media import (
     ffmpeg_available,
 )
 from app.services.ai.pipelines.lesson_video_jobs import LessonVideoJobRepository
+from app.debug_log import debug_log
 from app.services.fal import parsers
 from app.services.fal.mocks import MOCK_AUDIO_URL
 
@@ -292,6 +293,20 @@ async def run_lesson_video_job(
                 ),
             )
             image_url = extract_image_url(raw_img)
+            # #region agent log
+            debug_log(
+                "lesson_video.py:after_assets",
+                "image and audio generated",
+                {
+                    "job_id": job_id,
+                    "has_image": bool(image_url),
+                    "has_audio": bool(audio_url),
+                    "ffmpeg": ffmpeg_available(),
+                    "clips_enabled": settings.lesson_enable_video_clips,
+                },
+                hypothesis_id="H1",
+            )
+            # #endregion
 
             if settings.lesson_enable_video_clips and image_url and audio_url:
                 target = int(settings.lesson_scene_target_seconds)
@@ -325,6 +340,14 @@ async def run_lesson_video_job(
                         lesson_video_url = silent_video
                 except Exception as exc:
                     logger.warning("Lesson animation failed for job %s: %s", job_id, exc)
+                    # #region agent log
+                    debug_log(
+                        "lesson_video.py:animation_failed",
+                        str(exc)[:200],
+                        {"job_id": job_id},
+                        hypothesis_id="H1",
+                    )
+                    # #endregion
                     _phase("Animation unavailable — using still image fallback", 75)
 
             if not lesson_video_url and image_url and audio_url and ffmpeg_available():
@@ -345,6 +368,31 @@ async def run_lesson_video_job(
 
         if not lesson_video_url and audio_url:
             lesson_video_url = audio_url
+
+        # #region agent log
+        from app.services.ai.pipelines.lesson_media import lesson_render_path
+
+        render_file = lesson_render_path(settings, job_id)
+        debug_log(
+            "lesson_video.py:complete",
+            "pipeline finished",
+            {
+                "job_id": job_id,
+                "video_mode": video_mode,
+                "playlist_is_api_file": bool(
+                    lesson_video_url and "/lesson-video/" in str(lesson_video_url)
+                ),
+                "playlist_is_audio_only": bool(
+                    lesson_video_url
+                    and lesson_video_url == audio_url
+                    and not str(lesson_video_url).endswith(".mp4")
+                ),
+                "render_mp4_exists": render_file.is_file(),
+                "render_mp4_bytes": render_file.stat().st_size if render_file.is_file() else 0,
+            },
+            hypothesis_id="H2-H3",
+        )
+        # #endregion
 
         scenes_out = _outline_to_scenes(script, lesson_video_url)
 

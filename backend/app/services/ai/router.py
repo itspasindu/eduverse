@@ -1,23 +1,17 @@
-<<<<<<< HEAD
-from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, Field
-
-from app.config import get_settings
-from app.core.dependencies import require_active_user
-from app.core.errors import raise_ai_error
-from app.core.moderation.service import enforce_clean_text
-from app.core.rate_limit import rate_limit_user
-from app.models.enums import TutorMode
-=======
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
-
-from app.core.dependencies import get_current_user_id, get_current_user_public, require_roles
-from app.models.enums import TutorMode, UserRole
->>>>>>> 140e298 (Save local progress)
+from app.core.dependencies import (
+    get_current_user_id,
+    get_current_user_public,
+    require_active_user,
+)
+from app.core.errors import raise_ai_error
+from app.core.moderation.service import enforce_clean_text
+from app.core.rate_limit import rate_limit_user
+from app.models.enums import TutorMode
 from app.models.user import UserPublic
 from app.services.ai.agent.learning_agent import EduVerseLearningAgent, get_learning_agent
 from app.services.ai.agent.models import AgentResult
@@ -30,17 +24,13 @@ from app.services.ai.models import (
     TutorResult,
 )
 from app.services.ai.orchestrator import AIOrchestrator, get_ai_orchestrator
-<<<<<<< HEAD
 from app.services.ai.usage import check_and_increment_ai_usage
-=======
 from app.services.characters.service import CharacterService
 from app.services.content.materials_service import MaterialsService
->>>>>>> 140e298 (Save local progress)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 
-<<<<<<< HEAD
 def enforce_ai_rate_limit(request: Request) -> None:
     settings = get_settings()
     rate_limit_user(
@@ -49,14 +39,14 @@ def enforce_ai_rate_limit(request: Request) -> None:
         window_seconds=3600,
         prefix="ai",
     )
-=======
+
+
 def get_character_service() -> CharacterService:
     return CharacterService()
 
 
 def get_materials_service() -> MaterialsService:
     return MaterialsService()
->>>>>>> 140e298 (Save local progress)
 
 
 class MemeGenerateRequest(BaseModel):
@@ -70,11 +60,8 @@ async def generate_meme(
     orchestrator: AIOrchestrator = Depends(get_ai_orchestrator),
     _rate: None = Depends(enforce_ai_rate_limit),
 ) -> MemeResult:
-<<<<<<< HEAD
     check_and_increment_ai_usage(str(user.id), user.role)
     enforce_clean_text(str(user.id), payload.text)
-=======
->>>>>>> 140e298 (Save local progress)
     try:
         return await orchestrator.generate_meme(payload.text)
     except Exception as exc:
@@ -115,7 +102,10 @@ async def agent_chat(
     agent: EduVerseLearningAgent = Depends(get_learning_agent),
     char_service: CharacterService = Depends(get_character_service),
     materials: MaterialsService = Depends(get_materials_service),
+    _rate: None = Depends(enforce_ai_rate_limit),
 ) -> AgentChatResult:
+    check_and_increment_ai_usage(str(user.id), user.role)
+    enforce_clean_text(str(user.id), payload.message)
     persona = char_service.persona_for_agent(payload.character_id, str(user.id))
 
     material_context = ""
@@ -140,10 +130,7 @@ async def agent_chat(
         result.character_id = payload.character_id
         return _agent_result_to_response(result)
     except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Agent request failed: {exc}",
-        ) from exc
+        raise_ai_error(exc, operation="Agent chat")
 
 
 class TutorRequest(BaseModel):
@@ -156,21 +143,14 @@ class TutorRequest(BaseModel):
 @router.post("/tutor", response_model=TutorResult)
 async def ask_tutor(
     payload: TutorRequest,
-<<<<<<< HEAD
     user: UserPublic = Depends(require_active_user),
-    orchestrator: AIOrchestrator = Depends(get_ai_orchestrator),
+    agent: EduVerseLearningAgent = Depends(get_learning_agent),
+    char_service: CharacterService = Depends(get_character_service),
     _rate: None = Depends(enforce_ai_rate_limit),
 ) -> TutorResult:
     check_and_increment_ai_usage(str(user.id), user.role)
     enforce_clean_text(str(user.id), payload.question, payload.context)
-=======
-    user: UserPublic = Depends(get_current_user_public),
-    agent: EduVerseLearningAgent = Depends(get_learning_agent),
-    char_service: CharacterService = Depends(get_character_service),
-) -> TutorResult:
-    """Delegates to the learning agent."""
     persona = char_service.persona_for_agent(payload.character_id, str(user.id))
->>>>>>> 140e298 (Save local progress)
     try:
         result = await agent.chat(
             payload.question,
@@ -223,13 +203,7 @@ async def generate_presentation(
             include_images=payload.include_images,
         )
     except Exception as exc:
-<<<<<<< HEAD
         raise_ai_error(exc, operation="Presentation generation")
-=======
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Presentation generation failed: {exc}",
-        ) from exc
 
 
 class LessonVideoRequest(BaseModel):
@@ -245,6 +219,7 @@ async def start_lesson_video(
     orchestrator: AIOrchestrator = Depends(get_ai_orchestrator),
     materials: MaterialsService = Depends(get_materials_service),
     char_service: CharacterService = Depends(get_character_service),
+    _rate: None = Depends(enforce_ai_rate_limit),
 ) -> LessonVideoResult:
     text = await materials.ensure_material_text(user_id, payload.material_id)
     if not text:
@@ -316,6 +291,20 @@ def get_lesson_video_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     path = lesson_render_path(get_settings(), job_id)
+    # #region agent log
+    from app.debug_log import debug_log
+
+    debug_log(
+        "ai/router.py:get_lesson_video_file",
+        "serve lesson file",
+        {
+            "job_id": job_id,
+            "exists": path.is_file(),
+            "bytes": path.stat().st_size if path.is_file() else 0,
+        },
+        hypothesis_id="H3",
+    )
+    # #endregion
     if not path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson video not ready")
 
@@ -327,7 +316,6 @@ def get_lesson_scene_video_file(
     job_id: str,
     scene_index: int,
     user_id: str = Depends(get_current_user_id),
-    orchestrator: AIOrchestrator = Depends(get_ai_orchestrator),
 ):
     """Serve muxed lesson scene MP4 (video + character voice)."""
     from app.services.ai.pipelines.lesson_media import scene_render_path
@@ -342,4 +330,3 @@ def get_lesson_scene_video_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scene video not ready")
 
     return FileResponse(path, media_type="video/mp4", filename=f"scene_{scene_index}.mp4")
->>>>>>> 140e298 (Save local progress)
