@@ -11,47 +11,118 @@ import {
   type LessonCharacter,
   type LessonMaterial,
   type LessonVideoJob,
+  isLessonAudioOnlyUrl,
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 
-function LessonSceneVideo({
+function LessonVideoPlayer({
   jobId,
-  sceneIndex,
   url,
+  poster,
 }: {
   jobId: string;
-  sceneIndex: number;
   url: string;
+  poster?: string | null;
 }) {
-  const [src, setSrc] = useState<string>(url);
-  const needsAuth =
-    url.includes("/lesson-video/") && url.includes("/scenes/");
+  const needsAuthFetch =
+    url.includes("/lesson-video/") &&
+    (url.includes("/file") || url.includes("/scenes/"));
+
+  const [src, setSrc] = useState<string | null>(needsAuthFetch ? null : url);
+  const [loading, setLoading] = useState(needsAuthFetch);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!needsAuth) {
+    if (!needsAuthFetch) {
       setSrc(url);
+      setLoading(false);
+      setLoadError(null);
       return;
     }
+
     let objectUrl: string | null = null;
+    let cancelled = false;
+
     (async () => {
+      setLoading(true);
+      setLoadError(null);
+      setSrc(null);
+
       const token = await getAccessToken();
-      if (!token) return;
-      const res = await fetch(
-        `/api/lesson-video/${jobId}/scenes/${sceneIndex}/file`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (!res.ok) return;
-      const blob = await res.blob();
-      objectUrl = URL.createObjectURL(blob);
-      setSrc(objectUrl);
+      if (!token) {
+        if (!cancelled) {
+          setLoadError("Sign in again to play this video.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const path = url.includes("/scenes/")
+        ? `/api/lesson-video/${jobId}/scenes/0/file`
+        : `/api/lesson-video/${jobId}/file`;
+
+      try {
+        const res = await fetch(path, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          if (!cancelled) {
+            setLoadError(
+              detail.includes("not ready")
+                ? "Video file is still processing. Wait a moment and refresh."
+                : `Could not load video (${res.status}).`,
+            );
+            setLoading(false);
+          }
+          return;
+        }
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+        setLoading(false);
+      } catch {
+        if (!cancelled) {
+          setLoadError("Cannot reach the server. Is the backend running?");
+          setLoading(false);
+        }
+      }
     })();
+
     return () => {
+      cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [jobId, sceneIndex, url, needsAuth]);
+  }, [jobId, url, needsAuthFetch]);
+
+  if (loading) {
+    return (
+      <p className="rounded-lg bg-zinc-900 px-4 py-8 text-center text-sm text-zinc-400">
+        Loading lesson video…
+      </p>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <p className="text-sm text-amber-700 dark:text-amber-300">{loadError}</p>
+    );
+  }
+
+  if (!src) {
+    return null;
+  }
 
   return (
-    <video src={src} controls playsInline className="w-full rounded-lg" />
+    <video
+      src={src}
+      poster={poster ?? undefined}
+      controls
+      playsInline
+      preload="metadata"
+      className="w-full rounded-lg bg-zinc-900"
+    />
   );
 }
 
@@ -125,14 +196,14 @@ export default function LessonStudio() {
     }
   }
 
+  const lessonVideoUrl = job?.playlist_url ?? null;
+  const isAudioOnly = isLessonAudioOnlyUrl(lessonVideoUrl);
+  const coverImage = job?.cover_image_url ?? null;
+
   async function onSaveToLibrary() {
-    const url =
-      job?.playlist_url ||
-      job?.scenes?.[0]?.video_url ||
-      job?.scenes?.[0]?.image_url;
-    if (!url) return;
+    if (!lessonVideoUrl || isAudioOnly) return;
     try {
-      await savePost(url, job?.title || "Lesson video", "video");
+      await savePost(lessonVideoUrl, job?.title || "Lesson video", "video");
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -195,7 +266,7 @@ export default function LessonStudio() {
           disabled={generating || !materialId}
           className="mt-4 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
         >
-          {generating ? "Starting…" : "Generate animated lesson video"}
+          {generating ? "Starting…" : "Generate lesson video (1–2 min)"}
         </button>
       </section>
 
@@ -209,58 +280,79 @@ export default function LessonStudio() {
           )}
           {job.status === "processing" && (
             <p className="mt-2 text-xs text-zinc-400">
-              Building animated clips with your character&apos;s voice (about 2–4 min per scene).
-              Requires ffmpeg on the server to merge audio into video.
+              Animating your character with AI motion, then merging the full voiceover (about
+              3–5 minutes). Requires ffmpeg on the server.
             </p>
           )}
           {job.error && <p className="mt-1 text-sm text-red-600">{job.error}</p>}
           {job.title && (
             <h3 className="mt-2 text-lg font-semibold">{job.title}</h3>
           )}
-          <div className="mt-4 space-y-4">
-            {job.scenes?.map((scene, i) => (
-              <div key={i} className="rounded-lg border p-3 dark:border-zinc-600">
-                <p className="font-medium">{scene.title}</p>
-                <p className="mt-1 text-xs italic text-zinc-500">{scene.narration}</p>
-                {scene.video_url && (
-                  <div className="mt-3">
-                    <p className="mb-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                      {scene.video_url.includes("/scenes/")
-                        ? "Lesson video (animated + voice)"
-                        : "Animated clip"}
+
+          {job.status === "completed" && lessonVideoUrl && !isAudioOnly && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                Your lesson video
+                {job.video_mode === "animated"
+                  ? " (AI animated)"
+                  : job.video_mode === "still"
+                    ? " (still image — animation was unavailable)"
+                    : ""}
+              </p>
+              <LessonVideoPlayer
+                jobId={job.job_id}
+                url={lessonVideoUrl}
+                poster={coverImage}
+              />
+            </div>
+          )}
+
+          {job.status === "completed" && isAudioOnly && lessonVideoUrl && (
+            <div className="mt-4 space-y-3">
+              <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                Voice only — restart the backend after{" "}
+                <code className="text-[11px]">pip install imageio-ffmpeg</code>, then generate
+                again for a full video.
+              </p>
+              {coverImage && (
+                <img
+                  src={coverImage}
+                  alt={job.title || "Lesson artwork"}
+                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
+                />
+              )}
+              <audio src={lessonVideoUrl} controls className="w-full" />
+            </div>
+          )}
+
+          {job.scenes && job.scenes.length > 0 && (
+            <div className="mt-6 space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Lesson outline
+              </p>
+              {job.scenes.map((scene, i) => (
+                <div
+                  key={i}
+                  className="rounded-lg border border-zinc-100 p-3 dark:border-zinc-700"
+                >
+                  <p className="font-medium">{scene.title}</p>
+                  {scene.narration && (
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                      {scene.narration}
                     </p>
-                    <LessonSceneVideo
-                      jobId={job.job_id}
-                      sceneIndex={i}
-                      url={scene.video_url}
-                    />
-                  </div>
-                )}
-                {scene.audio_url && !scene.video_url?.includes("/scenes/") && (
-                  <div className="mt-3">
-                    <p className="mb-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                      Voice only — waiting for video or install ffmpeg on the server
-                    </p>
-                    <audio src={scene.audio_url} controls className="w-full" />
-                  </div>
-                )}
-                {scene.image_url && !scene.video_url && (
-                  <img
-                    src={scene.image_url}
-                    alt={scene.title}
-                    className="mt-2 w-full rounded-lg"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          {job.status === "completed" && (
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {job.status === "completed" && lessonVideoUrl && !isAudioOnly && (
             <button
               type="button"
               onClick={onSaveToLibrary}
               className="mt-4 text-sm text-indigo-600 hover:underline"
             >
-              {saved ? "Saved to library" : "Save first clip to library"}
+              {saved ? "Saved to library" : "Save lesson to library"}
             </button>
           )}
         </section>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import RegisterForm from "@/components/auth/RegisterForm";
 import SupabaseConfigBanner from "@/components/auth/SupabaseConfigBanner";
 
@@ -13,7 +14,10 @@ export default function RegisterPage() {
           <header className="mb-8 text-center">
             <h1 className="text-2xl font-bold tracking-tight">Join EduVerse</h1>
             <p className="mt-2 text-sm text-zinc-500">
-              Start learning with AI memes and your personal tutor
+              Create your account, then pick a plan on the next step.{" "}
+              <Link href="/pricing" className="text-violet-600 hover:underline">
+                See pricing
+              </Link>
             </p>
           </header>
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">

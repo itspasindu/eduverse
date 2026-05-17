@@ -302,6 +302,26 @@ def get_lesson_video_job(
         ) from exc
 
 
+@router.get("/lesson-video/{job_id}/file")
+def get_lesson_video_file(
+    job_id: str,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Serve the full muxed lesson MP4 (one continuous video)."""
+    from app.services.ai.pipelines.lesson_media import lesson_render_path
+    from app.services.ai.pipelines.lesson_video_jobs import LessonVideoJobRepository
+
+    row = LessonVideoJobRepository().get(job_id)
+    if not row or str(row["user_id"]) != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    path = lesson_render_path(get_settings(), job_id)
+    if not path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson video not ready")
+
+    return FileResponse(path, media_type="video/mp4", filename="lesson.mp4")
+
+
 @router.get("/lesson-video/{job_id}/scenes/{scene_index}/file")
 def get_lesson_scene_video_file(
     job_id: str,

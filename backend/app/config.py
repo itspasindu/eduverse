@@ -1,9 +1,12 @@
+<<<<<<< HEAD
 from functools import lru_cache
 <<<<<<< HEAD
 from typing import Literal
 
 from pydantic import field_validator
 =======
+=======
+>>>>>>> 44a09b9 (Added new files)
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +46,7 @@ class Settings(BaseSettings):
     fal_mock_mode: bool = False
     fal_meme_model: str = "fal-ai/flux/schnell"
     fal_image_model: str = "fal-ai/flux/schnell"
-    fal_video_model: str = "fal-ai/minimax-video/image-to-video"
+    fal_video_model: str = "fal-ai/minimax/hailuo-02/standard/image-to-video"
     fal_vision_model: str = "fal-ai/florence-2-large/caption"
     fal_tts_model: str = "fal-ai/minimax/speech-02-hd"
     fal_llm_endpoint: str = "fal-ai/any-llm"
@@ -59,9 +62,9 @@ class Settings(BaseSettings):
         default=True,
         validation_alias="LESSON_MUX_VOICE_INTO_VIDEO",
     )
-    # Target playback length per scene (~90–110 words of narration).
+    # Target length for the single combined lesson video (1–2 minutes).
     lesson_scene_target_seconds: float = Field(
-        default=45.0,
+        default=90.0,
         validation_alias="LESSON_SCENE_TARGET_SECONDS",
     )
 
@@ -72,6 +75,16 @@ class Settings(BaseSettings):
     )
     # Public base URL for material file downloads (e.g. http://localhost:8000)
     api_public_url: str = Field(default="http://localhost:8000", validation_alias="API_PUBLIC_URL")
+    frontend_public_url: str = Field(
+        default="http://localhost:3000",
+        validation_alias="FRONTEND_PUBLIC_URL",
+    )
+
+    # PayHere (https://sandbox.payhere.lk for testing)
+    payhere_merchant_id: str = Field(default="", validation_alias="PAYHERE_MERCHANT_ID")
+    payhere_merchant_secret: str = Field(default="", validation_alias="PAYHERE_MERCHANT_SECRET")
+    payhere_sandbox: bool = Field(default=True, validation_alias="PAYHERE_SANDBOX")
+    payhere_currency: str = Field(default="USD", validation_alias="PAYHERE_CURRENCY")
 
     # Learning agent — search_api_key OR tavily/serper keys from your .env
     agent_max_turns: int = 6
@@ -152,6 +165,10 @@ class Settings(BaseSettings):
 =======
     public_paths: tuple[str, ...] = (
         "/posts/feed",
+        "/subscriptions/plans",
+        "/subscriptions/payhere/notify",
+        "/subscriptions/payhere/return",
+        "/subscriptions/payhere/cancel",
         "/ai/meme",
         "/docs",
         "/redoc",
@@ -171,6 +188,8 @@ class Settings(BaseSettings):
         "search_api_key",
         "tavily_api_key",
         "serper_api_key",
+        "payhere_merchant_id",
+        "payhere_merchant_secret",
         mode="before",
     )
     @classmethod
@@ -201,6 +220,6 @@ class Settings(BaseSettings):
         return bool(self.search_api_key)
 
 
-@lru_cache
 def get_settings() -> Settings:
+    """Load settings from backend/.env on each call (so .env edits apply after uvicorn reload)."""
     return Settings()

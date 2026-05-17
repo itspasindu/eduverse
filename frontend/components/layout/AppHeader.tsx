@@ -45,6 +45,12 @@ export default async function AppHeader() {
           EduVerse
         </Link>
         <nav className="flex items-center gap-3 text-sm">
+          <Link
+            href="/pricing"
+            className="hidden rounded-lg px-3 py-1.5 text-zinc-600 transition hover:text-zinc-900 sm:inline dark:text-zinc-400"
+          >
+            Pricing
+          </Link>
           {user ? (
             <UserMenu
               email={user.email ?? ""}

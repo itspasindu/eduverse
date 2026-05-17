@@ -29,6 +29,12 @@ export default async function LandingPage() {
               {user ? "Open community" : "Start free"}
             </Link>
             <Link
+              href="/pricing"
+              className="rounded-xl border border-zinc-200 px-6 py-3 text-sm font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
+            >
+              View pricing
+            </Link>
+            <Link
               href="/login"
               className="rounded-xl border border-zinc-200 px-6 py-3 text-sm font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200"
             >

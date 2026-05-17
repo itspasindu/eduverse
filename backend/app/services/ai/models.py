@@ -62,6 +62,8 @@ class LessonVideoResult(BaseModel):
     phase: str | None = None
     scenes: list[LessonScene] = Field(default_factory=list)
     playlist_url: str | None = None
+    cover_image_url: str | None = None
+    video_mode: str | None = None  # animated | still | none
     error: str | None = None
 
 

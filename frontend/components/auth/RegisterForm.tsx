@@ -62,7 +62,7 @@ export default function RegisterForm() {
         }
       }
 
-      router.push("/dashboard");
+      router.push("/choose-plan");
       router.refresh();
     } catch {
       setError(

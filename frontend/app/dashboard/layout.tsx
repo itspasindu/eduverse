@@ -1,7 +1,10 @@
+<<<<<<< HEAD
 ﻿import DashboardContent from "@/components/dashboard/DashboardContent";
+=======
+>>>>>>> 44a09b9 (Added new files)
 import DashboardSidebar from "@/components/dashboard/Sidebar";
 import MobileNav from "@/components/dashboard/MobileNav";
-import { fetchMe } from "@/lib/api-server";
+import { fetchMe, fetchMySubscriptionServer } from "@/lib/api-server";
 import { normalizeRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { getServerAccessToken } from "@/lib/supabase/server-auth";
@@ -34,6 +37,17 @@ export default async function DashboardLayout({
       role = normalizeRole(me.role);
     } catch {
       // Fall back to JWT metadata
+    }
+  }
+
+  if (token && role !== "admin") {
+    try {
+      const sub = await fetchMySubscriptionServer(token);
+      if (!sub) {
+        redirect("/choose-plan");
+      }
+    } catch {
+      // Allow dashboard if subscription API unavailable
     }
   }
 

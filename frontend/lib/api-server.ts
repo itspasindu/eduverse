@@ -1,12 +1,15 @@
 import type {
   AdminOverview,
   AdminPostRow,
+  AdminSubscriptionRow,
   AdminUserRow,
   Announcement,
   DashboardData,
   Post,
+  SubscriptionPlan,
   TeacherOverview,
   TeacherStudent,
+  UserSubscription,
 } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -80,6 +83,30 @@ export async function fetchTeacherStudents(token: string): Promise<TeacherStuden
 
 export async function fetchAnnouncementsFeed(token: string): Promise<Announcement[]> {
   return apiGet<Announcement[]>("/teacher/announcements/feed", token);
+}
+
+export async function fetchSubscriptionPlansServer(): Promise<SubscriptionPlan[]> {
+  const res = await fetch(`${API_BASE}/subscriptions/plans`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to load plans");
+  return res.json();
+}
+
+export async function fetchMySubscriptionServer(
+  token: string,
+): Promise<UserSubscription | null> {
+  const res = await fetch(`${API_BASE}/subscriptions/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data ?? null;
+}
+
+export async function fetchAdminSubscriptions(
+  token: string,
+): Promise<AdminSubscriptionRow[]> {
+  return apiGet<AdminSubscriptionRow[]>("/admin/subscriptions", token);
 }
 
 export async function fetchTeacherAnnouncements(token: string): Promise<Announcement[]> {

@@ -1,5 +1,6 @@
+import Link from "next/link";
 import SettingsForm from "@/components/dashboard/SettingsForm";
-import { fetchMe } from "@/lib/api-server";
+import { fetchMe, fetchMySubscriptionServer } from "@/lib/api-server";
 import { getServerAccessToken } from "@/lib/supabase/server-auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,6 +23,7 @@ export default async function SettingsPage() {
   let role = (user?.user_metadata?.role as string) ?? "student";
 
   const token = await getServerAccessToken();
+  let subscription = null;
   if (token) {
     try {
       const profile = await fetchMe(token);
@@ -30,6 +32,11 @@ export default async function SettingsPage() {
       role = profile.role ?? role;
     } catch {
       // Use auth metadata
+    }
+    try {
+      subscription = await fetchMySubscriptionServer(token);
+    } catch {
+      /* optional */
     }
   }
 
@@ -41,6 +48,38 @@ export default async function SettingsPage() {
           Update your display name and profile photo.
         </p>
       </header>
+
+      <section className="mb-8 rounded-2xl border border-zinc-200 p-5 dark:border-zinc-700">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Subscription
+        </h2>
+        {subscription ? (
+          <div className="mt-3">
+            <p className="text-lg font-semibold">{subscription.plan.name}</p>
+            <p className="text-sm capitalize text-zinc-500">Status: {subscription.status}</p>
+            {subscription.status === "pending" && (
+              <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                Waiting for admin activation. You can still use Starter features once approved.
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            No plan selected yet.
+          </p>
+        )}
+        <Link
+          href="/choose-plan"
+          className="mt-4 inline-block text-sm font-medium text-violet-600 hover:underline"
+        >
+          Change plan
+        </Link>
+        {" · "}
+        <Link href="/pricing" className="text-sm font-medium text-violet-600 hover:underline">
+          View pricing
+        </Link>
+      </section>
+
       <SettingsForm
         email={user?.email ?? ""}
         fullName={fullName}

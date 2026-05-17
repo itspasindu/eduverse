@@ -1,0 +1,740 @@
+================================================================================
+CURSOR BUILDATHON — PROJECT SUBMISSION DOCUMENT
+EduVerse AI
+================================================================================
+Complete every section below. This document is written to stand on its own without
+the live demo. Update bracketed placeholders ([...]) before final submission.
+
+================================================================================
+01 — PROJECT OVERVIEW
+================================================================================
+
+Project Name & One-Line Pitch
+-----------------------------
+EduVerse AI — A multimodal AI social learning platform where students and creators
+turn study materials into memes, personalized tutor mascots, and narrated lesson
+videos, then share and grow together in a community feed.
+
+Summary
+-------
+Students and self-directed learners struggle to stay engaged with dense study
+material. EduVerse addresses this by combining fal.ai-powered generation (images,
+video, speech, LLM) with a social layer: users sign up, pick a subscription plan,
+use an AI tutor with tools, design lesson characters, upload PDFs or notes into
+Lesson Studio to produce short narrated videos, publish memes to a feed, and
+interact as students, creators, teachers, or admins. The product is a full-stack
+SaaS: Next.js frontend, FastAPI backend, Supabase for auth and Postgres, and
+PayHere for subscription checkout in sandbox.
+
+Submission Details
+------------------
+Track name:              Cursor (primary) — entire codebase designed and built
+                         with Cursor AI-assisted development; multimodal AI via
+                         fal.ai (including Gemini 2.0 Flash through fal-ai/any-llm)
+Track integration:       YES — Cursor used end-to-end for architecture, FastAPI
+                         services, Next.js UI, migrations, and PayHere integration.
+                         fal.ai is the core AI provider for meme, tutor, character,
+                         lesson video, TTS, and image-to-video pipelines.
+
+Team name:               [Your team name — e.g. EduVerse Team]
+Demo URL:                [Your deployed demo — e.g. https://eduverse.vercel.app]
+Repository link:         https://github.com/Kawishka06/eduverse
+
+
+================================================================================
+02 — PROBLEM STATEMENT
+================================================================================
+
+The Problem
+-----------
+Students, exam preppers, and informal learners experience low engagement when
+studying from textbooks, PDFs, and lecture slides alone. They read passively,
+forget quickly, and rarely revisit material in a format that matches how they
+actually consume content (short video, humor, social proof). Content creators and
+teachers who want to repackage lessons for digital audiences face the same gap:
+turning raw notes into polished, persona-driven media is slow and requires
+multiple tools (design, TTS, video editing, hosting).
+
+If left unsolved, learners default to passive reading or fragmented apps (chatbot
+here, Canva there, YouTube elsewhere) with no single place to study, create, and
+share. Teachers cannot easily push class updates or branded mascots alongside
+student work.
+
+Why It Matters
+--------------
+The problem is daily and high-impact for anyone in formal or self-directed
+education. Poor engagement leads to lower retention, weaker outcomes, and
+abandonment of online learning platforms.
+
+Current workarounds include: generic ChatGPT for Q&A (no persona, no materials
+grounding, no video output); meme generators without pedagogy; video tools without
+AI scripting from uploads; and LMS forums without creative AI studios. Each
+falls short because it solves one slice (Q&A OR memes OR video) without social
+context, role-based classrooms, or a unified multimodal pipeline tied to the
+user's own uploads and characters.
+
+Root Cause
+----------
+Study content is still delivered primarily as static text and slides, while
+attention and sharing behavior have shifted to visual, short-form, and
+persona-driven media. The underlying cause is a toolchain gap: no integrated
+system connects (1) the learner's source material, (2) multimodal AI generation,
+(3) persistent user identity and library, and (4) community distribution — at a
+price point accessible to individuals and small institutions.
+
+
+================================================================================
+03 — PROPOSED SOLUTION
+================================================================================
+
+What the Product Does
+---------------------
+EduVerse is a web application where users register with email/password (Supabase
+Auth), complete onboarding (role selection, plan choice), and enter a role-aware
+dashboard. The AI Orchestrator centralizes all fal.ai calls: memes, tutoring,
+presentations, character reference art, lesson scripts, TTS, image-to-video, and
+local ffmpeg muxing. The Learning Agent adds a ReAct loop on top — the tutor can
+invoke calculator, code review, and web search tools before answering. Lesson
+Studio accepts uploaded materials, pairs them with a custom character (name,
+personality, visual description, voice style), and runs a background job that
+produces a single combined lesson MP4 with narration. Users publish memes and
+videos to a social feed, browse others' posts, and manage a personal library.
+Teachers post class announcements; admins moderate users, posts, and subscriptions.
+
+Core mechanism: authenticated API requests flow from Next.js → FastAPI (JWT from
+Supabase) → service modules → Supabase Postgres / Storage and fal.ai → results
+stored or streamed back to the UI with job polling for long-running lesson videos.
+
+Key Features (built, working, demonstrable)
+-------------------------------------------
+1. Authentication & profiles (Supabase Auth, JWT middleware, role on signup)
+   — Need: secure identity and role-based experiences.
+
+2. Role-aware dashboard (student, creator, teacher, admin navigation)
+   — Need: each persona sees relevant tools without clutter.
+
+3. AI Meme Studio (/ai/meme → Flux image + LLM captions)
+   — Need: turn study ideas into shareable, humorous visual memory aids.
+
+4. AI Tutor / Learning Agent (/ai/agent/chat, /ai/tutor — ReAct + tools)
+   — Need: explanations in standard, simple, or meme modes with optional character
+     persona and uploaded material context.
+
+5. Character Designer (lesson_characters table + fal reference image)
+   — Need: personalized mascot for tutoring and lesson narration.
+
+6. Lesson Studio (material upload, /ai/lesson-video job pipeline)
+   — Need: convert PDF/text materials into ~1–2 min narrated video lessons.
+
+7. Slide Studio (/ai/presentation — creator/admin)
+   — Need: generate presentation slides from notes with font styling.
+
+8. Community feed & library (posts, likes, save to library)
+   — Need: social motivation and content reuse.
+
+9. Teacher announcements & class mascots
+   — Need: classroom communication and shared character visibility.
+
+10. Admin panel (users, moderation, subscription management, analytics overview)
+    — Need: platform governance and manual plan assignment.
+
+11. Subscriptions & pricing (Starter free, Pro $12/mo, Institution $29/mo)
+    — Need: monetization and tiered feature access narrative.
+
+12. PayHere checkout (sandbox) for paid plans with notify/return/cancel webhooks
+    — Need: real payment flow for Pro and Institution tiers.
+
+Scope — In scope for this build
+-------------------------------
+- Full auth and four roles (student, creator, teacher, admin)
+- All AI studios listed above with fal.ai integration and mock fallbacks
+- Supabase schema migrations 001–009 (profiles, posts, lessons, announcements,
+  subscriptions, storage buckets)
+- PayHere sandbox checkout and subscription state in Postgres
+- Marketing landing, pricing, choose-plan, payment success/cancel pages
+- Health endpoints including DB probe for lesson feature readiness
+
+Scope — Deliberately out of scope (time / priority)
+---------------------------------------------------
+- Pinecone vector search (listed in README roadmap, not implemented in code)
+- Production PayHere live keys and recurring billing automation
+- Hard subscription enforcement on every AI endpoint (plans exist; gating can be
+  extended)
+- Native mobile apps
+- Real-time collaborative editing
+- Automated content moderation ML (admin moderation is manual)
+
+
+================================================================================
+04 — FUNCTIONAL REQUIREMENTS (MoSCoW)
+================================================================================
+
+MUST HAVE (all demonstrable in live demo)
+-----------------------------------------
+FR-M1  User can register and sign in with email/password via Supabase.
+FR-M2  User receives a profile with role (student, creator, teacher, admin).
+FR-M3  Protected dashboard routes redirect unauthenticated users to login.
+FR-M4  User can generate a meme from text prompt and view top/bottom captions.
+FR-M5  Signed-in user can chat with AI Tutor in standard/simple/meme modes.
+FR-M6  Learning Agent can use tools (calculator, code review, web search when
+       Tavily/Serper key configured).
+FR-M7  User can create a lesson character with generated reference image.
+FR-M8  User can upload study material (.txt, .md, PDF with text extraction).
+FR-M9  User can start a lesson video job and poll until completed or failed.
+FR-M10 User can play the muxed lesson MP4 (authenticated file proxy on frontend).
+FR-M11 User can browse community feed and view posts.
+FR-M12 User can save generated content to personal library.
+FR-M13 User can view and select subscription plans (Starter / Pro / Institution).
+FR-M14 Admin can list users, change roles, and manage subscriptions.
+FR-M15 Teacher can publish class announcements readable by students.
+FR-M16 API returns JSON errors with CORS headers; health endpoints respond publicly.
+
+SHOULD HAVE
+------------
+FR-S1  Creator/admin can generate AI presentation slides from notes.
+FR-S2  Teacher can publish class-visible characters (visibility: class).
+FR-S3  User can attach character persona and material IDs to tutor chat.
+FR-S4  Paid plan checkout via PayHere sandbox with return to success/cancel pages.
+FR-S5  Admin dashboard shows user/post counts and breakdown by role/type.
+FR-S6  Avatar upload to Supabase storage for profile images.
+FR-S7  Tutor chat shows agent step trace (tool calls) in the UI.
+
+COULD HAVE / WON'T HAVE (this build)
+-------------------------------------
+FR-C1  Vector RAG over materials via Pinecone — COULD; not built.
+FR-C2  Automatic subscription quota enforcement per plan — COULD; partial.
+FR-C3  Live PayHere production merchant — WON'T; sandbox only.
+FR-C4  Multi-scene episodic lesson series — WON'T; single combined video per job.
+FR-C5  In-app video editor — WON'T.
+FR-C6  OAuth providers beyond email — WON'T this build.
+
+
+================================================================================
+05 — NON-FUNCTIONAL REQUIREMENTS
+================================================================================
+
+Performance
+-----------
+- Meme generation and tutor chat: target < 30s for typical prompts (fal timeout
+  default 120s for heavy models).
+- Lesson video job: async background task; user polls GET /ai/lesson-video/{id};
+  full pipeline may take 2–5+ minutes depending on fal video + ffmpeg mux
+  (LESSON_VIDEO_TIMEOUT default 180s).
+- Feed and dashboard loads: target < 2s on local/staging with Supabase queries.
+- Concurrent usage: stateless FastAPI workers; fal.ai and Supabase handle scale
+  externally; lesson jobs are per-user file-based on disk (LESSON_DATA_DIR).
+
+Reliability & Error Handling
+----------------------------
+- Global FastAPI exception handler returns JSON 500 (preserves CORS headers).
+- fal mock mode (FAL_MOCK_MODE=true) provides deterministic placeholders without
+  API keys for demos.
+- AI routes return 502 with detail message on orchestrator/agent failures.
+- Lesson jobs record status pending → processing → completed/failed with
+  error_message in lesson_video_jobs table.
+- Missing subscription tables degrade gracefully with 503 and migration hint.
+- PayHere notify verifies cryptographic hash before activating subscription.
+
+Usability
+---------
+- Tailwind CSS 4, violet/indigo gradient brand, dark mode support in globals.
+- Role-specific sidebar and mobile nav (dashboard-nav.ts).
+- Clear CTAs on landing: Start free, View pricing, Sign in.
+- Lesson Studio shows job progress, video player with auth-aware blob fetch.
+- Pricing cards highlight "Pro" as most popular.
+
+Accessibility
+-------------
+- Semantic HTML structure in Next.js pages; form labels on auth and settings.
+- Further WCAG audit (ARIA live regions for tutor streaming) — future work.
+
+Scalability
+-----------
+- To handle 10x load: move lesson renders to object storage + CDN; queue lesson
+  jobs (Redis/SQS); horizontal scale FastAPI behind load balancer; connection
+  pooling on Supabase; rate-limit AI endpoints per plan.
+- Architecture already separates concerns (auth, content, ai, subscriptions,
+  payments) as independent FastAPI routers for independent scaling.
+
+
+================================================================================
+06 — TECHNICAL ARCHITECTURE
+================================================================================
+
+System Overview
+---------------
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Next.js 16 App Router (frontend/)                                           │
+│  - Marketing: /, /pricing, /login, /register, /choose-plan                   │
+│  - Dashboard: role-based pages (meme, tutor, characters, lesson-studio,      │
+│    feed, library, slides, teacher, admin)                                    │
+│  - API routes: /api/tutor, /api/auth/*, /api/lesson-video/[jobId]/file      │
+│  - Supabase SSR middleware for session + route protection                    │
+└───────────────────────────────┬─────────────────────────────────────────────┘
+                                │ HTTPS + Bearer JWT
+┌───────────────────────────────▼─────────────────────────────────────────────┐
+│  FastAPI 0.3 (backend/main.py)                                               │
+│  JWTAuthMiddleware → routers: auth, ai, content, materials, characters,       │
+│  dashboard, admin, teacher, subscriptions, payments                          │
+└───────┬─────────────────┬──────────────────────┬────────────────────────────┘
+        │                 │                      │
+        ▼                 ▼                      ▼
+   Supabase          fal.ai APIs            Local disk
+   (Auth, Postgres,  (Flux, any-llm,        (lesson MP4s,
+    Storage, RLS)     TTS, image-to-video)  LESSON_DATA_DIR)
+
+Technology Stack
+----------------
+| Layer            | Technology              | Rationale                          |
+|------------------|-------------------------|------------------------------------|
+| Frontend         | Next.js 16, React 19    | App Router, SSR auth, API routes   |
+| Styling          | Tailwind CSS 4          | Rapid, consistent UI               |
+| Backend          | FastAPI, Pydantic v2    | Typed APIs, OpenAPI docs, async    |
+| Database         | Supabase Postgres       | Auth + RLS + managed Postgres      |
+| Auth             | Supabase Auth + PyJWT   | Industry-standard JWT sessions     |
+| AI (track-adj.)  | fal.ai (fal-client)     | Unified multimodal model gateway   |
+| LLM              | google/gemini-2.0-flash | Via fal-ai/any-llm endpoint        |
+| Image            | fal-ai/flux/schnell     | Fast meme/character/scene images   |
+| Video            | minimax hailuo-02       | Image-to-video per lesson scene    |
+| TTS              | fal-ai/minimax/speech   | Character voice for lessons        |
+| Search (agent)   | Tavily or Serper        | Web search tool for tutor agent    |
+| Media processing | ffmpeg (imageio-ffmpeg) | Mux voice into MP4 locally           |
+| Payments         | PayHere (sandbox)       | Regional checkout for LK/international|
+| Dev tool (track) | Cursor IDE              | AI-assisted full-stack development |
+| Hosting (target) | Vercel + cloud API      | Standard Next deploy; API on VPS/Railway|
+
+Data Flow — Lesson Video (core action)
+--------------------------------------
+1. User uploads file → POST /content/materials → stored in Supabase Storage,
+   text extracted (pypdf for PDF) → lesson_materials row.
+2. User selects character + material in Lesson Studio → POST /ai/lesson-video.
+3. Backend creates lesson_video_jobs row (pending), returns 202 + job_id.
+4. Background task run_lesson_video_job:
+   a. LLM (Gemini via fal any-llm) writes JSON script: title, narration, visual_prompt.
+   b. fal Flux generates scene image (character reference URL if set).
+   c. fal TTS generates narration audio (Minimax or Kokoro model).
+   d. Optional: fal image-to-video animates scene; ffmpeg muxes audio+video.
+   e. Job row updated: progress %, scenes_json, status completed/failed.
+5. Frontend polls GET /ai/lesson-video/{job_id} until completed.
+6. User plays video via GET /ai/lesson-video/{id}/file or Next.js proxy route
+   /api/lesson-video/[jobId]/file with Authorization header.
+
+Data Flow — AI Tutor chat
+-------------------------
+1. User sends message in TutorChat → POST /api/tutor (Next) or backend /ai/agent/chat.
+2. Backend loads optional character persona + material text chunks.
+3. EduVerseLearningAgent runs ReAct loop (max AGENT_MAX_TURNS=6):
+   - LLM returns JSON action: answer | tool
+   - Tools: calculator, code_helper, search (Tavily/Serper HTTP)
+4. Final answer returned with steps[] for UI transparency.
+
+AI Integration
+--------------
+| Capability        | Model / Endpoint                          | Role in UX        |
+|-------------------|-------------------------------------------|-------------------|
+| Tutor / Agent     | fal-ai/any-llm + gemini-2.0-flash-001   | Q&A, ReAct, tools |
+| Meme image        | fal-ai/flux/schnell                       | Meme visuals      |
+| Meme captions     | LLM via fal                               | Top/bottom text   |
+| Character art     | fal-ai/flux/schnell                       | Reference sheet   |
+| Lesson script     | LLM via fal                               | Narration script  |
+| Lesson TTS        | fal-ai/minimax/speech-02-hd               | Voice narration   |
+| Lesson animation  | fal-ai/minimax/hailuo-02 image-to-video   | Motion clips      |
+| Presentations     | LLM + slide structure                     | Slide Studio      |
+| Vision (optional) | fal-ai/florence-2-large/caption           | Material captions |
+
+Prompting: TUTOR_MODE_PROMPTS for standard/simple/meme; build_agent_system_prompt
+for tool-use JSON; SCRIPT_SYSTEM for lesson narration JSON-only output.
+
+Known Technical Limitations
+---------------------------
+- Lesson videos stored on backend filesystem (not Supabase Storage for final MP4).
+- Long jobs block background worker per process (no distributed queue).
+- Pinecone mentioned in README but not wired in code.
+- FAL_MOCK_MODE returns placeholder media for offline demos.
+- ffmpeg required on server PATH for mux; gracefully degrades if unavailable.
+- PayHere: sandbox credentials in .env.example — must not commit live secrets.
+- PDF extraction quality varies; empty text blocks lesson generation.
+
+
+================================================================================
+07 — SECURITY
+================================================================================
+
+Authentication & Authorisation
+------------------------------
+- Users authenticate via Supabase Auth (email/password).
+- Frontend: @supabase/ssr cookies; middleware protects /dashboard/*.
+- Backend: JWTAuthMiddleware validates Supabase JWT (SUPABASE_JWT_SECRET);
+  attaches user_id and user_role to request.state.
+- Role enforcement: require_roles() dependency on admin, teacher, creator routes.
+- Public paths explicitly listed in config (health, feed, meme demo, plans,
+  PayHere webhooks, OpenAPI docs).
+
+Data Handling
+-------------
+- Profiles, posts, characters, materials, jobs, subscriptions in Supabase Postgres.
+- Row Level Security enabled on profiles, posts, subscription tables, lesson tables.
+- Passwords managed by Supabase Auth (not stored in application tables).
+- Lesson materials and avatars in Supabase Storage buckets (migrations 006, 008).
+- Sensitive payment state: PayHere notify verified with merchant secret hash.
+
+API & Secret Management
+-----------------------
+- Secrets in backend/.env and frontend/.env.local (gitignored).
+- Only NEXT_PUBLIC_* exposed to browser (Supabase URL/anon key, API URL).
+- FAL_KEY, service role key, JWT secret, PayHere secret — backend only.
+- .env.example documents keys without real production values.
+
+Input Validation
+----------------
+- Pydantic models on all POST bodies (min/max length on prompts, messages).
+- Calculator tool uses AST parsing with allowlisted operators only (no eval()).
+- File uploads validated by content type and ownership checks on materials.
+- PayHere notify payload signature verification before subscription activation.
+
+Known Vulnerabilities or Gaps
+-----------------------------
+- Subscription tier limits not enforced on all AI routes yet (business logic gap).
+- Service role key used server-side; must never ship to client bundles.
+- Rate limiting and abuse detection not implemented on /ai/meme public endpoint.
+- Content moderation is admin manual review, not automated.
+- CORS allows local network regex for dev convenience — tighten for production.
+
+
+================================================================================
+08 — USER STORIES & USE CASES
+================================================================================
+
+Core User Stories
+-----------------
+US-1  As a student, I want to ask the AI tutor questions in simple language, so
+      that I understand difficult topics without reading a textbook again.
+
+US-2  As a student, I want to upload my notes and get a short video lesson, so
+      that I can review material in a format I actually watch.
+
+US-3  As a student, I want to design a lesson mascot, so that studying feels
+      personal and less intimidating.
+
+US-4  As a student, I want to turn a concept into a meme and post it, so that I
+      remember it and share humor with peers.
+
+US-5  As a creator, I want to generate slides from my notes, so that I can
+      publish educational content faster.
+
+US-6  As a teacher, I want to post class announcements, so that students see
+      updates in their dashboard.
+
+US-7  As a teacher, I want to publish a class mascot, so that my class shares a
+      consistent visual identity in AI interactions.
+
+US-8  As an admin, I want to manage user roles and subscriptions, so that I can
+      onboard institutions and fix billing issues.
+
+US-9  As a new user, I want to choose a plan (free or paid), so that I know what
+      features I am signing up for.
+
+US-10 As a paying user, I want to complete checkout via PayHere, so that my Pro
+      or Institution plan activates after payment.
+
+Primary Use Case Walkthrough — Lesson video from upload
+-------------------------------------------------------
+1. User signs in → lands on dashboard → opens Lesson Studio.
+2. User uploads "Biology_Chapter3.pdf" → material appears in list with extracted text.
+3. User opens Character Designer (or picks existing) → "Professor Owl", friendly voice.
+4. User selects material + character → clicks Generate Lesson Video.
+5. System creates job, shows progress bar; backend runs script → image → TTS → mux.
+6. On completion, inline video player loads MP4 via authenticated proxy.
+7. User optionally saves output to library or shares via feed (meme/video post types).
+
+Edge Cases
+----------
+- Empty PDF text → 400 with message to use .txt/.md or re-upload.
+- fal API down → 502 on sync routes; lesson job status failed with error_message.
+- User polls job belonging to another user → 404.
+- Free plan selected → POST /subscriptions/me without PayHere.
+- Paid plan without PayHere env → 503 with configuration instructions.
+- Unauthenticated dashboard access → redirect to /login?redirect=...
+- Agent JSON parse failure → falls back to raw LLM text answer.
+
+
+================================================================================
+09 — TARGET USERS & MARKET
+================================================================================
+
+Primary User
+------------
+Secondary and university students (16–25) and young self-learners who already use
+social media and short video for entertainment but study from PDFs and slides.
+Pain addressed: boredom, isolation, and lack of memorable formats for revision.
+
+Secondary: indie edu-creators and classroom teachers who need fast repurposing of
+existing notes into engaging media without a production team.
+
+Market Opportunity
+------------------
+Global EdTech and AI tutoring markets are multi-billion and growing; initial wedge
+is English-medium students in South Asia and similar markets where PayHere-style
+payments and mobile-first social learning resonate. First segment: individual
+learners and small tutoring centers (10–500 students), then institution tier for
+schools needing teacher dashboards and bulk materials.
+
+Competitive Landscape
+---------------------
+| Alternative              | Weakness vs EduVerse                          |
+|--------------------------|-----------------------------------------------|
+| ChatGPT / Gemini apps    | No lesson video pipeline, no social feed,       |
+|                          | no persistent characters tied to class        |
+| Canva / CapCut           | Manual editing; no AI script from course PDFs |
+| Khan Academy / Coursera  | Not user-generated; no meme/social layer      |
+
+
+================================================================================
+10 — BUSINESS MODEL
+================================================================================
+
+Revenue Model
+-------------
+Freemium SaaS with tiered subscriptions:
+- Starter (free): core tutor sessions cap narrative, feed, announcements, library.
+- Pro ($12/month): unlimited tutor, meme/character/lesson studios, priority queue.
+- Institution ($29/month): slide studio, teacher tools, bulk materials, support.
+
+Why it fits: learners can try free; serious users and creators pay for unlimited
+AI generation; schools pay for teacher/admin capabilities.
+
+Pricing Hypothesis
+------------------
+$12/mo Pro is below the price of one tutoring hour and competitive with Spotify-
+scale consumer subscriptions; institutions at $29/mo undercut per-seat LMS add-ons
+while remaining accessible for small centers in LKR/USD markets via PayHere.
+
+Go-to-Market (first 10 customers)
+---------------------------------
+1. Demo at local university study groups and hackathon network (TechTalk360).
+2. Offer free Institution trial for one pilot classroom via admin manual activation.
+3. TikTok/Instagram clips showing meme + lesson video generation from real notes.
+4. Partner with one tuition center in Colombo for 2-week pilot (teacher role).
+5. Message: "Turn your notes into a talking mascot video in 5 minutes."
+
+Roadmap
+-------
+Now (hackathon build):
+- Full platform as described; PayHere sandbox; Supabase migrations 001–009.
+
+0–3 months:
+- Enforce plan quotas on AI endpoints; production PayHere; deploy frontend Vercel
+  + API cloud; move lesson MP4 to Supabase Storage; basic analytics.
+
+1 year:
+- Institution SSO; classroom rosters; assignment workflows; Pinecone RAG on
+  materials; mobile PWA; Sinhala/Tamil UI; marketplace for creator lesson templates.
+
+
+================================================================================
+11 — WHY THIS PROJECT LEADS THE TRACK
+================================================================================
+
+Technical Edge
+--------------
+- Deep multimodal stack through a single AIOrchestrator — not one API call but a
+  chained pipeline: LLM script → Flux image → TTS → image-to-video → ffmpeg mux.
+- Custom ReAct Learning Agent with safe calculator, code review, and live web
+  search — demonstrable tool steps in the UI.
+- Production-shaped architecture: 9 SQL migrations, RLS, role-based routers,
+  payment webhooks, background jobs, and authenticated media proxy — uncommon depth
+  for a hackathon timeframe, enabled by Cursor-accelerated development.
+
+Problem-Solution Fit
+--------------------
+The product directly attacks passive study with the same modalities students already
+use (memes, short video, chat). Every major feature maps to a stated pain: tutor
+for understanding, memes for memory, lesson studio for revision, feed for motivation,
+teacher tools for classroom reality.
+
+Execution Quality
+-----------------
+- End-to-end flows work: register → dashboard → generate meme → tutor chat →
+  character → lesson video → feed → pricing → checkout callback.
+- Mock mode allows reliable demo without fal credits.
+- Polished violet/indigo UI, role-specific nav, payment success/cancel pages, admin
+  subscription table.
+
+Real-World Potential
+--------------------
+EduVerse is structured as a real SaaS (subscriptions table, PayHere, admin tools),
+not a single-demo script. Clear path to institutional sales, creator economy on the
+feed, and regional payments. The team can continue on subscription revenue and
+pilot schools immediately after the buildathon.
+
+
+================================================================================
+12 — TEAM & ROLES
+================================================================================
+
+Team Members
+--------------
+[Update with your actual team before submission]
+
+| Name              | Role            | Built                          | Background        |
+|-------------------|-----------------|--------------------------------|-------------------|
+| [Full Name]       | Full-stack / PM | Architecture, integrations,  | [One line — e.g.   |
+|                   |                 | PayHere, Lesson Studio pipeline| CS student, etc.]  |
+| [Teammate 2]      | Frontend        | Next.js dashboard, TutorChat,  | [One line]        |
+|                   |                 | pricing, subscription UI       |                   |
+| [Teammate 3]      | Backend / AI    | FastAPI, fal orchestrator,     | [One line]        |
+|                   |                 | learning agent, migrations     |                   |
+
+GitHub repository owner: Kawishka06 (https://github.com/Kawishka06/eduverse)
+
+Why This Team
+-------------
+[Customize] Combination of full-stack development, AI workflow design, and education
+domain familiarity — able to ship a multimodal pipeline plus payments and admin
+tools within the buildathon window using Cursor for rapid, consistent iteration
+across frontend, backend, and SQL.
+
+
+================================================================================
+APPENDIX A — COMPLETE PROJECT INVENTORY
+================================================================================
+
+Repository structure (high level)
+---------------------------------
+eduverse/
+├── frontend/                 Next.js 16 app
+├── backend/                  FastAPI application
+├── supabase/migrations/      001–009 SQL migrations
+├── README.md
+└── CURSOR_BUILDATHON_SUBMISSION.txt (this file)
+
+Frontend routes & pages
+-----------------------
+Public:
+  /                           Landing page (features, CTA pricing/register)
+  /login                      Sign in
+  /register                   Sign up with role metadata
+  /pricing                    Subscription plan cards
+  /choose-plan                Post-registration plan selection
+  /payment/success            PayHere return success
+  /payment/cancel             PayHere cancel
+  /chat                       Chat entry (legacy/alternate)
+
+Dashboard (auth required):
+  /dashboard                  Role overview / stats
+  /dashboard/meme             Meme Studio (MemeGenerator)
+  /dashboard/tutor              AI Tutor (TutorChat)
+  /dashboard/characters         Character Designer
+  /dashboard/lesson-studio      Lesson Studio (upload + video jobs)
+  /dashboard/feed               Community feed
+  /dashboard/library            Saved content library
+  /dashboard/announcements      Student class updates
+  /dashboard/settings           Profile & account settings
+  /dashboard/slides             Slide Studio (creator)
+  /dashboard/migrate-lessons    Lesson migration helper
+  /dashboard/teacher            Teacher home
+  /dashboard/teacher/students   Student list (teacher)
+  /dashboard/teacher/announcements  Teacher announcement panel
+  /dashboard/admin              Admin overview
+  /dashboard/admin/users        User management table
+  /dashboard/admin/moderation   Content moderation panel
+  /dashboard/admin/subscriptions Admin subscription management
+
+Frontend API routes (Next.js)
+  /api/auth/login
+  /api/tutor                    Proxies to backend learning agent
+  /api/materials/[id]
+  /api/profile/avatar
+  /api/characters
+  /api/lesson-video/[jobId]
+  /api/lesson-video/[jobId]/file  Authenticated MP4 proxy
+  /auth/callback                Supabase OAuth callback handler
+
+Key frontend components
+  AppHeader, Sidebar, MobileNav
+  MemeGenerator, TutorChat, CharacterDesigner, LessonStudio
+  PricingCards, ChoosePlanClient, PayHereCheckout
+  AdminUsersTable, AdminSubscriptionsTable, AdminModerationPanel
+  TeacherAnnouncementsPanel
+
+Backend API routers (prefixes)
+  /auth/*                     Session sync, profile
+  /ai/meme                    Meme generation (public)
+  /ai/tutor                   Tutor (authenticated)
+  /ai/agent/chat              Learning agent with tools
+  /ai/presentation            Slide generation (creator/admin)
+  /ai/lesson-video            Start job, poll status, serve MP4
+  /content/*                  Posts, feed, library
+  /content/materials          Upload & text extraction
+  /characters/*               CRUD lesson characters
+  /dashboard/*                User stats
+  /admin/*                    Users, posts, subscriptions overview
+  /teacher/*                  Announcements, teacher utilities
+  /subscriptions/plans        Public plan list
+  /subscriptions/me           User subscription CRUD
+  /subscriptions/checkout     PayHere checkout session
+  /subscriptions/payhere/*    Notify, return, cancel webhooks
+
+Database tables (Supabase migrations)
+  001  profiles, posts, enums (user_role, post_type), RLS, handle_new_user
+  002  Supabase auth profile linkage refinements
+  003  Drop legacy users
+  004  Fix profiles auth FK
+  005  teacher role, announcements table
+  006  avatars storage bucket
+  007  lesson_characters, lesson_materials, lesson_video_jobs
+  008  lesson storage buckets
+  009  subscription_plans, user_subscriptions (Starter/Pro/Institution seed)
+
+Subscription plans (seeded)
+  starter      $0/mo   — AI Tutor (10 sessions/mo), feed, announcements, library
+  pro          $12/mo  — Unlimited tutor, meme/character/lesson studio, priority queue
+  institution  $29/mo  — Everything in Pro + slide studio, teacher tools, support
+
+AI models configured (backend/app/config.py)
+  FAL_MEME_MODEL, FAL_IMAGE_MODEL, FAL_CHARACTER_MODEL: fal-ai/flux/schnell
+  FAL_VIDEO_MODEL: fal-ai/minimax/hailuo-02/standard/image-to-video
+  FAL_TTS_MODEL: fal-ai/minimax/speech-02-hd
+  FAL_VISION_MODEL: fal-ai/florence-2-large/caption
+  FAL_LLM_ENDPOINT: fal-ai/any-llm
+  FAL_LLM_MODEL: google/gemini-2.0-flash-001
+
+Learning agent tools
+  calculator      Safe AST math evaluation
+  code_helper     Static analysis prompt (no execution)
+  search          Tavily or Serper web search API
+
+Environment variables (see backend/.env.example, frontend/.env.example)
+  SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET
+  FAL_KEY, FAL_MOCK_MODE, model overrides, LESSON_* toggles
+  PAYHERE_MERCHANT_ID, PAYHERE_MERCHANT_SECRET, PAYHERE_SANDBOX
+  TAVILY_API_KEY / SERPER_API_KEY, AGENT_MAX_TURNS
+  NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_API_URL
+
+Health & ops
+  GET /health                 { status: ok }
+  GET /health/db              Probes Supabase tables, lessonFeaturesReady flag
+
+Version
+  API version: 0.3.0 (backend/main.py)
+
+
+================================================================================
+APPENDIX B — DEMO CHECKLIST (for judges)
+================================================================================
+
+[ ] Register new student account
+[ ] Land on dashboard — show role nav
+[ ] Generate meme from study topic — show image + captions
+[ ] Open AI Tutor — ask question in "meme" mode — show tool steps if triggered
+[ ] Create character — show reference image generation
+[ ] Upload .txt or PDF material — start lesson video — show job progress → play MP4
+[ ] Browse community feed
+[ ] Open /pricing — show three tiers
+[ ] (Optional) PayHere sandbox checkout for Pro plan → /payment/success
+[ ] Admin login — show users + subscription management
+
+================================================================================
+END OF SUBMISSION DOCUMENT
+Cursor Buildathon · Cursor × TechTalk360 · Confidential
+================================================================================

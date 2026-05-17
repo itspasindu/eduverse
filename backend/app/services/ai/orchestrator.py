@@ -302,6 +302,8 @@ class AIOrchestrator:
             phase=row.get("phase"),
             scenes=scenes,
             playlist_url=row.get("playlist_url"),
+            cover_image_url=row.get("cover_image_url"),
+            video_mode=row.get("video_mode"),
             error=row.get("error_message"),
         )
 

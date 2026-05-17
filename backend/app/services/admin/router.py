@@ -5,8 +5,17 @@ from app.core.auth_sync import sync_user_role_to_auth
 from app.core.dependencies import require_roles
 from app.models.enums import PostType, UserRole
 from app.models.post import PostPublic
+from app.models.subscription import (
+    AdminSubscriptionRow,
+    AdminSubscriptionUpdate,
+    UserSubscriptionPublic,
+)
 from app.models.user import UserPublic
+<<<<<<< HEAD
 from app.services.audit.repository import AuditRepository
+=======
+from app.services.subscriptions.repository import SubscriptionRepository
+>>>>>>> 44a09b9 (Added new files)
 from app.services.auth.repository import ProfileRepository
 from app.services.content.repository import PostRepository
 from app.services.reports.repository import ReportRepository
@@ -245,6 +254,39 @@ def list_all_posts(
             )
         )
     return rows
+
+
+@router.get("/subscriptions", response_model=list[AdminSubscriptionRow])
+def list_subscriptions(
+    _user: UserPublic = Depends(require_roles(UserRole.ADMIN.value)),
+) -> list[AdminSubscriptionRow]:
+    rows = SubscriptionRepository().list_all_with_users(limit=200)
+    return [AdminSubscriptionRow.model_validate(r) for r in rows]
+
+
+@router.patch(
+    "/users/{user_id}/subscription",
+    response_model=UserSubscriptionPublic,
+)
+def update_user_subscription(
+    user_id: str,
+    payload: AdminSubscriptionUpdate,
+    admin: UserPublic = Depends(require_roles(UserRole.ADMIN.value)),
+) -> UserSubscriptionPublic:
+    updated = SubscriptionRepository().admin_update_subscription(
+        user_id,
+        plan_slug=payload.plan_slug.strip().lower(),
+        status=payload.status.value,
+        notes=payload.notes,
+        ends_at=payload.ends_at,
+        assigned_by=str(admin.id),
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_503_NOT_FOUND,
+            detail="Subscription not found or tables not migrated",
+        )
+    return UserSubscriptionPublic.model_validate(updated)
 
 
 @router.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)

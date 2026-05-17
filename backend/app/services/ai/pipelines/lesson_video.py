@@ -1,4 +1,4 @@
-"""Lesson video pipeline: script → scene images → TTS → image-to-video."""
+"""Lesson video pipeline: one script → one image → one voice track → one MP4."""
 
 from __future__ import annotations
 
@@ -21,15 +21,14 @@ from app.services.ai.helpers.fal import (
 )
 from app.services.ai.helpers.llm import _extract_llm_text
 from app.services.ai.pipelines.lesson_media import (
-    build_scene_video_with_voice,
+    build_lesson_video_from_image_and_audio,
+    build_lesson_video_with_voice,
     ffmpeg_available,
-    scene_render_path,
 )
 from app.services.ai.pipelines.lesson_video_jobs import LessonVideoJobRepository
 from app.services.fal import parsers
 from app.services.fal.mocks import MOCK_AUDIO_URL
 
-# MiniMax Speech-02 HD voice presets (fal-ai/minimax/speech-02-hd)
 VOICE_STYLE_TO_MINIMAX: dict[str, str] = {
     "friendly": "Wise_Woman",
     "warm": "Calm_Woman",
@@ -40,7 +39,6 @@ VOICE_STYLE_TO_MINIMAX: dict[str, str] = {
     "childlike": "Cute_Girl",
 }
 
-# Kokoro (legacy; set FAL_TTS_MODEL=fal-ai/kokoro/american-english to use)
 VOICE_STYLE_TO_KOKORO: dict[str, str] = {
     "friendly": "af_bella",
     "warm": "af_heart",
@@ -63,9 +61,9 @@ def _kokoro_voice(voice_style: str) -> str:
 
 
 def _tts_payload(text: str, voice_style: str, model: str) -> dict[str, Any]:
-    snippet = text.strip()[:500]
+    snippet = text.strip()[:4000]
     if "kokoro" in model:
-        return {"text": snippet, "voice": _kokoro_voice(voice_style)}
+        return {"text": snippet[:500], "voice": _kokoro_voice(voice_style)}
     return {
         "text": snippet,
         "voice_setting": {"voice_id": _minimax_voice(voice_style)},
@@ -74,24 +72,29 @@ def _tts_payload(text: str, voice_style: str, model: str) -> dict[str, Any]:
 
 
 SCRIPT_SYSTEM = """You are an educational video scriptwriter.
-From the study material, create a short lesson with 3 to 5 scenes.
-Each scene narration must teach real facts from the material (the character will read it aloud).
-
-Create exactly 3 scenes (not more).
+From the study material, write ONE continuous lesson the character will read aloud as a single video (about 1–2 minutes when spoken).
 
 Return ONLY valid JSON:
 {
   "title": "Lesson title",
-  "scenes": [
-    {
-      "title": "Scene name",
-      "narration": "What the character says aloud (2-4 sentences, factual, from the material)",
-      "visual_prompt": "Detailed scene description for image generation",
-      "on_screen_text": "Short keyword or phrase on screen"
-    }
+  "narration": "One flowing script, 180–220 words, teaching real facts from the material",
+  "visual_prompt": "One cohesive scene description for the whole lesson (character, setting, mood)",
+  "outline": [
+    {"title": "Chapter name", "summary": "One sentence about this part of the lesson"}
   ]
 }
+
+Include 3–4 outline chapters for structure only (not separate videos).
 No markdown, no code fences."""
+
+
+def _cap_narration(narration: str, target_seconds: float) -> str:
+    words = narration.split()
+    max_words = max(120, int(target_seconds * 2.3))
+    if len(words) <= max_words:
+        return narration.strip()
+    trimmed = " ".join(words[:max_words]).rstrip(".,;:")
+    return f"{trimmed}…"
 
 
 async def generate_lesson_script(material_text: str, settings: Settings) -> dict[str, Any]:
@@ -111,34 +114,30 @@ async def generate_lesson_script(material_text: str, settings: Settings) -> dict
     )
     raw = _extract_llm_text(result)
     parsed = _extract_json(raw)
-    if parsed and parsed.get("scenes"):
+    if parsed and parsed.get("narration"):
         return parsed
     return _mock_script(material_text)
 
 
 def _mock_script(material_text: str) -> dict[str, Any]:
-    topic = material_text[:80].strip() or "Your lesson"
+    topic = material_text[:80].strip() or "your topic"
     return {
         "title": f"Lesson: {topic[:50]}",
-        "scenes": [
-            {
-                "title": "Introduction",
-                "narration": f"Welcome! Today we explore {topic[:60]}.",
-                "visual_prompt": "Friendly cartoon teacher in a bright classroom, welcoming gesture",
-                "on_screen_text": "Intro",
-            },
-            {
-                "title": "Main idea",
-                "narration": "Here is the core concept from your notes, broken into simple steps.",
-                "visual_prompt": "Educational diagram style illustration, colorful, student-friendly",
-                "on_screen_text": "Key idea",
-            },
-            {
-                "title": "Summary",
-                "narration": "Great job! Review these points and teach a friend what you learned.",
-                "visual_prompt": "Celebration scene with books and lightbulb, positive mood",
-                "on_screen_text": "Recap",
-            },
+        "narration": (
+            f"Welcome! Today we explore {topic}. "
+            "We'll walk through the key ideas from your notes step by step, "
+            "so you can remember the facts and explain them to a friend. "
+            "Pay attention to the main themes and how they connect. "
+            "By the end, you should be able to summarize what matters most."
+        ),
+        "visual_prompt": (
+            "Friendly cartoon teacher in a bright classroom explaining a topic, "
+            "educational poster boards, warm lighting, student-friendly"
+        ),
+        "outline": [
+            {"title": "Introduction", "summary": f"Overview of {topic[:40]}"},
+            {"title": "Key ideas", "summary": "Core concepts from the material"},
+            {"title": "Recap", "summary": "Summary and review"},
         ],
     }
 
@@ -182,6 +181,39 @@ async def _synthesize_narration(
     return parsers.parse_audio_url(tts_raw)
 
 
+def _outline_to_scenes(script: dict[str, Any], lesson_video_url: str | None) -> list[dict[str, Any]]:
+    """Text-only chapters for the UI; video plays once at the top."""
+    outline = script.get("outline") or []
+    scenes: list[dict[str, Any]] = []
+    for item in outline:
+        if not isinstance(item, dict):
+            continue
+        scenes.append(
+            {
+                "title": str(item.get("title", "Section")),
+                "narration": str(item.get("summary", "")),
+                "visual_prompt": "",
+                "on_screen_text": "",
+                "image_url": None,
+                "audio_url": None,
+                "video_url": None,
+            }
+        )
+    if not scenes:
+        scenes.append(
+            {
+                "title": str(script.get("title", "Lesson")),
+                "narration": str(script.get("narration", ""))[:300],
+                "visual_prompt": str(script.get("visual_prompt", "")),
+                "on_screen_text": "",
+                "image_url": None,
+                "audio_url": None,
+                "video_url": None,
+            }
+        )
+    return scenes
+
+
 async def run_lesson_video_job(
     job_id: str,
     *,
@@ -205,160 +237,117 @@ async def run_lesson_video_job(
         )
 
     try:
-        _phase("Writing lesson script from your notes…", 5)
+        _phase("Writing your lesson script…", 5)
 
         script = await generate_lesson_script(material_text, settings)
         title = str(script.get("title", "Lesson"))
-        scenes_in = script.get("scenes") or []
-        scenes_out: list[dict[str, Any]] = []
+        narration = _cap_narration(
+            str(script.get("narration", "")),
+            settings.lesson_scene_target_seconds,
+        )
+        visual = str(script.get("visual_prompt", ""))
 
-        _phase(f"Script ready: {title}", 10, title=title)
+        _phase(f"Script ready: {title}", 12, title=title)
 
-        total = max(len(scenes_in), 1)
-        for idx, scene in enumerate(scenes_in):
-            scene_num = idx + 1
-            slice_size = 80 // total
-            base_progress = 10 + idx * slice_size
-            _phase(f"Scene {scene_num}/{total}: generating visuals…", base_progress)
+        char_lock = f"Character: {character_bible[:400]}. " if character_bible else ""
+        ref_note = " Match the reference character design exactly." if reference_image_url else ""
+        image_prompt = (
+            f"{char_lock}{visual}{ref_note} "
+            "Educational illustration, vibrant, student-friendly, no text in image. "
+            "Single clear composition suitable for subtle animation."
+        )
+        motion_prompt = (
+            f"Cinematic educational scene with visible motion: {visual[:200]}. "
+            "Character moves naturally, subtle camera drift, hair and clothes react, "
+            "ambient motion in background, soft lighting, no text on screen."
+        )
 
-            visual = str(scene.get("visual_prompt", ""))
-            char_lock = f"Character: {character_bible[:400]}. " if character_bible else ""
-            ref_note = " Match the reference character design exactly." if reference_image_url else ""
-            image_prompt = (
-                f"{char_lock}{visual}{ref_note} "
-                "Educational illustration, vibrant, student-friendly, no text in image. "
-                "Single clear composition suitable for subtle animation."
+        image_url: str | None = None
+        audio_url: str | None = None
+        lesson_video_url: str | None = None
+        video_mode = "none"
+
+        if settings.fal_mock_mode or not settings.fal_key:
+            image_url = "https://placehold.co/1024x576/png?text=Lesson"
+            audio_url = await _synthesize_narration(
+                narration, settings=settings, voice_style=voice_style
             )
-            motion_prompt = (
-                f"Gentle educational motion: {visual[:180]}. "
-                "Slow camera push, soft lighting, living scene, no text."
-            )
+        else:
+            extra: dict[str, Any] = {}
+            if reference_image_url:
+                extra["image_url"] = reference_image_url
 
-            image_url: str | None = None
-            audio_url: str | None = None
-            video_url: str | None = None
-
-            narration = str(scene.get("narration", ""))
-
-            if settings.fal_mock_mode or not settings.fal_key:
-                image_url = "https://placehold.co/1024x576/png?text=Scene"
-                audio_url = await _synthesize_narration(
-                    narration, settings=settings, voice_style=voice_style
-                )
-                video_url = None
-            else:
-                extra: dict[str, Any] = {}
-                if reference_image_url:
-                    extra["image_url"] = reference_image_url
-
-                raw_img = await text_to_image(
+            _phase("Creating artwork + recording voice…", 30)
+            raw_img, audio_url = await asyncio.gather(
+                text_to_image(
                     image_prompt,
                     model=settings.fal_character_model,
                     image_size="landscape_16_9",
                     num_images=1,
                     timeout=settings.fal_request_timeout,
                     **extra,
-                )
-                image_url = extract_image_url(raw_img)
-
-                _phase(
-                    f"Scene {scene_num}/{total}: recording character voice…",
-                    base_progress + slice_size // 3,
-                )
-                audio_url = await _synthesize_narration(
+                ),
+                _synthesize_narration(
                     narration, settings=settings, voice_style=voice_style
-                )
+                ),
+            )
+            image_url = extract_image_url(raw_img)
 
-            scene_record = {
-                "title": str(scene.get("title", f"Scene {idx + 1}")),
-                "narration": str(scene.get("narration", "")),
-                "visual_prompt": visual,
-                "on_screen_text": str(scene.get("on_screen_text", "")),
-                "image_url": image_url,
-                "audio_url": audio_url,
-                "video_url": None,
-            }
-            scenes_out.append(scene_record)
-
-            if (
-                settings.lesson_enable_video_clips
-                and image_url
-                and not settings.fal_mock_mode
-                and settings.fal_key
-            ):
-                _phase(
-                    f"Scene {scene_num}/{total}: animating video (up to {int(settings.lesson_video_timeout)}s)…",
-                    base_progress + slice_size // 2,
-                )
+            if settings.lesson_enable_video_clips and image_url and audio_url:
+                target = int(settings.lesson_scene_target_seconds)
+                _phase(f"Animating scene with AI motion (~{target}s lesson)…", 55)
                 try:
+                    video_args: dict[str, Any] = {}
+                    if "hailuo" in settings.fal_video_model:
+                        video_args["duration"] = "10"
                     vid_raw = await asyncio.wait_for(
                         image_to_video(
                             image_url,
                             model=settings.fal_video_model,
                             prompt=motion_prompt,
                             timeout=settings.lesson_video_timeout,
+                            **video_args,
                         ),
                         timeout=settings.lesson_video_timeout + 30,
                     )
                     silent_video = extract_video_url(vid_raw)
-                    scene_record["video_url"] = silent_video
+                    video_mode = "animated"
 
-                    if (
-                        settings.lesson_mux_voice_into_video
-                        and audio_url
-                        and ffmpeg_available()
-                    ):
-                        _phase(
-                            f"Scene {scene_num}/{total}: adding character voice to video…",
-                            base_progress + (2 * slice_size) // 3,
-                        )
-                        muxed = await build_scene_video_with_voice(
+                    if ffmpeg_available():
+                        _phase("Merging animated clip with character voice…", 85)
+                        lesson_video_url = await build_lesson_video_with_voice(
                             job_id=job_id,
-                            scene_index=idx,
                             video_url=silent_video,
                             audio_url=audio_url,
                             settings=settings,
                         )
-                        if muxed:
-                            scene_record["video_url"] = muxed
-                    elif audio_url and not ffmpeg_available():
-                        _phase(
-                            f"Scene {scene_num}/{total}: install ffmpeg to merge voice into video",
-                            base_progress + (2 * slice_size) // 3,
-                        )
+                    else:
+                        lesson_video_url = silent_video
                 except Exception as exc:
-                    logger.warning(
-                        "Scene %s video failed for job %s: %s",
-                        scene_num,
-                        job_id,
-                        exc,
-                    )
-                    _phase(
-                        f"Scene {scene_num}/{total}: video failed — showing image + voice",
-                        base_progress + (2 * slice_size) // 3,
-                    )
-            else:
-                repo.update(
-                    job_id,
-                    {
-                        "scenes_json": list(scenes_out),
-                        "progress": 10 + int(((idx + 0.5) / total) * 85),
-                    },
+                    logger.warning("Lesson animation failed for job %s: %s", job_id, exc)
+                    _phase("Animation unavailable — using still image fallback", 75)
+
+            if not lesson_video_url and image_url and audio_url and ffmpeg_available():
+                _phase("Building fallback video from still image…", 80)
+                lesson_video_url = await build_lesson_video_from_image_and_audio(
+                    job_id=job_id,
+                    image_url=image_url,
+                    audio_url=audio_url,
+                    settings=settings,
+                )
+                video_mode = "still"
+
+            if not lesson_video_url and audio_url and not ffmpeg_available():
+                _phase(
+                    "Install ffmpeg (pip install imageio-ffmpeg) and restart the backend",
+                    85,
                 )
 
-            repo.update(
-                job_id,
-                {
-                    "scenes_json": list(scenes_out),
-                    "progress": 10 + int(((idx + 1) / total) * 85),
-                    "phase": f"Finished scene {scene_num}/{total}",
-                },
-            )
+        if not lesson_video_url and audio_url:
+            lesson_video_url = audio_url
 
-        playlist = (
-            next((s.get("video_url") for s in scenes_out if s.get("video_url")), None)
-            or (scenes_out[0].get("audio_url") if scenes_out else None)
-        )
+        scenes_out = _outline_to_scenes(script, lesson_video_url)
+
         repo.update(
             job_id,
             {
@@ -367,7 +356,9 @@ async def run_lesson_video_job(
                 "title": title,
                 "phase": "Done",
                 "scenes_json": scenes_out,
-                "playlist_url": playlist,
+                "playlist_url": lesson_video_url,
+                "cover_image_url": image_url,
+                "video_mode": video_mode,
             },
         )
     except Exception as exc:

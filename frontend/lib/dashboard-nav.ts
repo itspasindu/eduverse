@@ -63,6 +63,7 @@ const adminLinks: NavLink[] = [
   { href: "/dashboard/admin", label: "Admin panel", icon: "🛡️" },
   { href: "/dashboard/slides", label: "Slide Studio", icon: "📽️" },
   { href: "/dashboard/admin/users", label: "Users", icon: "👤" },
+  { href: "/dashboard/admin/subscriptions", label: "Subscriptions", icon: "💳" },
   { href: "/dashboard/admin/moderation", label: "Moderation", icon: "🧹" },
   { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
 ];
@@ -79,8 +80,15 @@ export function mobileLinksForRole(role: AppRole): NavLink[] {
     return [
       { href: COMMUNITY_HOME, label: "Home", icon: "🏠" },
       { href: "/dashboard/admin", label: "Admin", icon: "🛡️" },
+<<<<<<< HEAD
       { href: "/dashboard/meme", label: "Create", icon: "➕" },
       { href: "/dashboard/settings", label: "Profile", icon: "👤" },
+=======
+      { href: "/dashboard/admin/users", label: "Users", icon: "👤" },
+      { href: "/dashboard/admin/subscriptions", label: "Plans", icon: "💳" },
+      { href: "/dashboard/admin/moderation", label: "Mod", icon: "🧹" },
+      { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
+>>>>>>> 44a09b9 (Added new files)
     ];
   }
   if (role === "teacher") {

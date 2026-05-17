@@ -45,7 +45,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && isAuthRoute && !isSignOut && !path.startsWith("/auth/callback")) {
+  if (
+    user &&
+    isAuthRoute &&
+    !isSignOut &&
+    !path.startsWith("/auth/callback")
+  ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";
     return NextResponse.redirect(redirectUrl);

@@ -15,6 +15,8 @@ from app.services.admin import router as admin_router
 from app.services.dashboard import router as dashboard_router
 from app.services.social import router as social_router
 from app.services.teacher import router as teacher_router
+from app.services.subscriptions import router as subscriptions_router
+from app.services.payments import router as payments_router
 
 settings = get_settings()
 <<<<<<< HEAD
@@ -53,7 +55,12 @@ app.include_router(characters_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(teacher_router)
+<<<<<<< HEAD
 app.include_router(social_router)
+=======
+app.include_router(subscriptions_router)
+app.include_router(payments_router)
+>>>>>>> 44a09b9 (Added new files)
 
 
 @app.exception_handler(Exception)

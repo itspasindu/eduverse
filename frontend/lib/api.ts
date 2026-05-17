@@ -100,6 +100,38 @@ export type UserProfile = {
   is_suspended?: boolean;
 };
 
+export type SubscriptionPlan = {
+  id: string;
+  slug: string;
+  name: string;
+  tagline?: string | null;
+  description?: string | null;
+  price_cents: number;
+  billing_period: string;
+  features: string[];
+  sort_order: number;
+};
+
+export type UserSubscription = {
+  id: string;
+  user_id: string;
+  plan: SubscriptionPlan;
+  status: "pending" | "active" | "cancelled" | "expired";
+  starts_at?: string | null;
+  ends_at?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminSubscriptionRow = {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  role: string;
+  subscription: UserSubscription | null;
+};
+
 export type DashboardData = {
   user: UserProfile;
   stats: {
@@ -251,8 +283,18 @@ export type LessonVideoJob = {
   phase?: string | null;
   scenes: LessonScene[];
   playlist_url?: string | null;
+  cover_image_url?: string | null;
+  video_mode?: string | null;
   error?: string | null;
 };
+
+export function isLessonAudioOnlyUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  if (url.includes("/lesson-video/") && (url.includes("/file") || url.includes("/scenes/"))) {
+    return false;
+  }
+  return /\.(mp3|m4a|wav|ogg)(\?|$)/i.test(url) || /_speech|\/speech/i.test(url);
+}
 
 export async function fetchCharacters(): Promise<LessonCharacter[]> {
   const token = await getAccessToken();
@@ -570,6 +612,7 @@ export async function fetchTeacherAnnouncements(): Promise<Announcement[]> {
   return res.json();
 }
 
+<<<<<<< HEAD
 export type AuditEventRow = {
   id: string;
   actor_id: string;
@@ -600,10 +643,105 @@ export async function reportContent(payload: {
   const res = await fetch(`${API_BASE}/reports`, {
     method: "POST",
     headers,
+=======
+export async function fetchSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  const res = await fetch(`${API_BASE}/subscriptions/plans`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to load plans");
+  return res.json();
+}
+
+export async function fetchMySubscription(): Promise<UserSubscription | null> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/subscriptions/me`, { headers });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Failed to load subscription");
+  const data = await res.json();
+  return data ?? null;
+}
+
+export type CheckoutResponse = {
+  order_id: string;
+  checkout_url: string;
+  fields: Record<string, string>;
+  amount: string;
+  currency: string;
+  plan_name: string;
+};
+
+export async function createSubscriptionCheckout(
+  planSlug: string,
+): Promise<CheckoutResponse> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/subscriptions/checkout`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ plan_slug: planSlug }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof body.detail === "string" ? body.detail : "Failed to start PayHere checkout",
+    );
+  }
+  return res.json();
+}
+
+export async function fetchPaymentStatus(orderId: string): Promise<{
+  order_id: string;
+  status: string;
+  plan_slug: string;
+  subscription_active: boolean;
+}> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/subscriptions/payment/${orderId}`, { headers });
+  if (!res.ok) throw new Error("Failed to load payment status");
+  return res.json();
+}
+
+export async function selectSubscriptionPlan(
+  planSlug: string,
+): Promise<UserSubscription> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/subscriptions/me`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ plan_slug: planSlug }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof body.detail === "string" ? body.detail : "Failed to select plan",
+    );
+  }
+  return res.json();
+}
+
+export async function fetchAdminSubscriptions(): Promise<AdminSubscriptionRow[]> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/admin/subscriptions`, { headers });
+  if (!res.ok) throw new Error("Failed to load subscriptions");
+  return res.json();
+}
+
+export async function updateUserSubscription(
+  userId: string,
+  payload: {
+    plan_slug: string;
+    status: string;
+    notes?: string | null;
+    ends_at?: string | null;
+  },
+): Promise<UserSubscription> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/admin/users/${userId}/subscription`, {
+    method: "PATCH",
+    headers,
+>>>>>>> 44a09b9 (Added new files)
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+<<<<<<< HEAD
     throwApiError(body, "Failed to submit report");
   }
   return res.json();
@@ -650,3 +788,11 @@ export async function deleteMyAccount(): Promise<void> {
     throwApiError(body, "Failed to delete account");
   }
 }
+=======
+    throw new Error(
+      typeof body.detail === "string" ? body.detail : "Failed to update subscription",
+    );
+  }
+  return res.json();
+}
+>>>>>>> 44a09b9 (Added new files)
