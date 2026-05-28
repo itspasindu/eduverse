@@ -103,6 +103,7 @@ class Settings(BaseSettings):
         "http://172.20.192.1:3000",
         "https://eduverse-gold-mu.vercel.app",
         "https://eduverse-gold-mu.netlify.app",
+        "https://eduverse-cfp1.onrender.com",
     ]
     cors_origin_regex: str = (
         r"https?://(localhost|127\.0\.0\.1|"
