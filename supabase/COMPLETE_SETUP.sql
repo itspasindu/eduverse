@@ -2,28 +2,57 @@
 -- EduVerse AI — COMPLETE Supabase database setup (run once in SQL Editor)
 -- Dashboard: https://supabase.com/dashboard → your project → SQL → New query
 -- Paste this entire file → Run
--- Safe to re-run: uses IF NOT EXISTS / DROP IF EXISTS where possible
+--
+-- Notes
+-- - Designed to be safe to re-run (idempotent where possible)
+-- - Uses Supabase Auth (auth.users) + public.profiles
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- -----------------------------------------------------------------------------
--- 1. ENUMS
+-- 1) ENUMS
 -- -----------------------------------------------------------------------------
 DO $$ BEGIN
-  CREATE TYPE user_role AS ENUM ('student', 'creator', 'admin');
+  CREATE TYPE user_role AS ENUM ('student', 'creator', 'teacher', 'admin');
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
-
--- Add teacher + ensure all roles exist (ignore if already present)
-ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'teacher';
 
 DO $$ BEGIN
   CREATE TYPE post_type AS ENUM ('meme', 'video');
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
+
+DO $$ BEGIN
+  CREATE TYPE subscription_status AS ENUM ('pending', 'active', 'cancelled', 'expired');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE character_visibility AS ENUM ('personal', 'class');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE lesson_job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+-- -----------------------------------------------------------------------------
+-- 2) HELPERS
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- -----------------------------------------------------------------------------
 -- 2. TABLES
@@ -285,7 +314,6 @@ CREATE POLICY "avatars_user_delete"
   );
 
 -- -----------------------------------------------------------------------------
-<<<<<<< HEAD
 -- Post likes & comments (007)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS post_likes (
@@ -424,21 +452,8 @@ CREATE TABLE IF NOT EXISTS ai_usage_daily (
 ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_usage_daily ENABLE ROW LEVEL SECURITY;
-=======
 -- 11. LESSON FEATURES (migrations 007 + 008)
 -- -----------------------------------------------------------------------------
-DO $$ BEGIN
-  CREATE TYPE character_visibility AS ENUM ('personal', 'class');
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-END $$;
-
-DO $$ BEGIN
-  CREATE TYPE lesson_job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-END $$;
-
 CREATE TABLE IF NOT EXISTS lesson_characters (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id            UUID NOT NULL REFERENCES profiles (id) ON DELETE CASCADE,
@@ -597,7 +612,6 @@ CREATE POLICY "lesson_characters_user_delete"
     bucket_id = 'lesson-characters'
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
->>>>>>> 140e298 (Save local progress)
 
 -- -----------------------------------------------------------------------------
 -- Done — verify

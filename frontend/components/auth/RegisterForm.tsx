@@ -26,6 +26,22 @@ export default function RegisterForm() {
     setError(null);
 
     try {
+      // #region agent log
+      fetch("http://127.0.0.1:7702/ingest/798fffa1-a47e-44a4-9eec-58aba336e417", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0e14a3" },
+        body: JSON.stringify({
+          sessionId: "0e14a3",
+          runId: "signup-debug",
+          hypothesisId: "H1",
+          location: "frontend/components/auth/RegisterForm.tsx:handleSubmit:beforeFetch",
+          message: "signup submit started",
+          data: { emailPresent: Boolean(email), passwordLen: password.length, role },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion agent log
+
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -38,6 +54,28 @@ export default function RegisterForm() {
       });
 
       const body = await res.json().catch(() => ({}));
+
+      // #region agent log
+      fetch("http://127.0.0.1:7702/ingest/798fffa1-a47e-44a4-9eec-58aba336e417", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0e14a3" },
+        body: JSON.stringify({
+          sessionId: "0e14a3",
+          runId: "signup-debug",
+          hypothesisId: "H2",
+          location: "frontend/components/auth/RegisterForm.tsx:handleSubmit:afterFetch",
+          message: "signup response received",
+          data: {
+            status: res.status,
+            ok: res.ok,
+            needs_confirmation: Boolean((body as any)?.needs_confirmation),
+            detail: typeof (body as any)?.detail === "string" ? (body as any).detail : null,
+            code: typeof (body as any)?.code === "string" ? (body as any).code : null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion agent log
 
       if (!res.ok) {
         const detail =

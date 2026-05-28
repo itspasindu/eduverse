@@ -9,6 +9,7 @@ import {
 
 export async function POST(request: Request) {
   const ip = clientIp(request);
+
   if (!checkRateLimit(`signup:${ip}`, 10, 60_000)) {
     return NextResponse.json(
       { detail: "Too many signup attempts. Try again later." },
