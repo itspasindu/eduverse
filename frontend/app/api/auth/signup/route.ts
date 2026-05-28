@@ -44,12 +44,14 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createRouteHandlerClient();
+    const origin = new URL(request.url).origin;
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName, role },
+        emailRedirectTo: `${origin}/auth/callback`,
       },
     });
 

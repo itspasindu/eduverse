@@ -225,6 +225,26 @@ export async function generatePresentation(
 
 export async function generateMeme(text: string): Promise<MemeGenerateResponse> {
   const headers = await authHeaders();
+  // #region agent log
+  fetch("http://127.0.0.1:7702/ingest/798fffa1-a47e-44a4-9eec-58aba336e417", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0e14a3" },
+    body: JSON.stringify({
+      sessionId: "0e14a3",
+      runId: "meme-401",
+      hypothesisId: "H1",
+      location: "frontend/lib/api.ts:generateMeme:beforeFetch",
+      message: "generateMeme about to call backend",
+      data: {
+        apiBase: API_BASE,
+        hasAuthHeader:
+          typeof (headers as any)?.Authorization === "string" &&
+          ((headers as any).Authorization as string).startsWith("Bearer "),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion agent log
   const res = await fetch(`${API_BASE}/ai/meme`, {
     method: "POST",
     headers,
@@ -232,6 +252,21 @@ export async function generateMeme(text: string): Promise<MemeGenerateResponse> 
   });
 
   if (!res.ok) {
+    // #region agent log
+    fetch("http://127.0.0.1:7702/ingest/798fffa1-a47e-44a4-9eec-58aba336e417", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "0e14a3" },
+      body: JSON.stringify({
+        sessionId: "0e14a3",
+        runId: "meme-401",
+        hypothesisId: "H2",
+        location: "frontend/lib/api.ts:generateMeme:afterFetch",
+        message: "generateMeme backend response not ok",
+        data: { status: res.status },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
     const body = await res.json().catch(() => ({}));
     throw new Error(parseApiDetail(body.detail) || "Failed to generate meme. Please try again.");
   }
