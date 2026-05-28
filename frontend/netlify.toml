@@ -8,10 +8,3 @@
 
 [build.environment]
   NODE_VERSION = "20"
-
-# Optional: proxy API through Netlify (same-origin). Prefer NEXT_PUBLIC_API_URL to your Vercel API instead.
-# [[redirects]]
-#   from = "/api/backend/*"
-#   to = "https://YOUR-API.vercel.app/:splat"
-#   status = 200
-#   force = true
